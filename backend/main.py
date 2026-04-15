@@ -8,6 +8,8 @@ app = FastAPI(title="CoinSage API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
+    # 本地自托管 PWA，开发阶段放通所有来源
+    # 生产部署时替换为具体域名，勿与 allow_credentials=True 同用
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
