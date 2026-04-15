@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from backend.database import get_db, init_db
 
 load_dotenv()
 
@@ -14,6 +15,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup():
+    db = get_db()
+    init_db(db)
+    db.close()
 
 @app.get("/health")
 def health():
