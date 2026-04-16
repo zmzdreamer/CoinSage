@@ -18,9 +18,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
-    db = get_db()
-    init_db(db)
-    db.close()
+    with get_db() as db:
+        init_db(db)
 
 @app.get("/health")
 def health():
