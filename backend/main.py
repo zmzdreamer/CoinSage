@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from backend.database import get_db, init_db
-from backend.routers import categories
+from backend.routers import categories, transactions
 
 load_dotenv()
 
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(categories.router)
+app.include_router(transactions.router)
 
 @app.on_event("startup")
 def startup():
