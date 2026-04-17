@@ -14,11 +14,12 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState("home")
   const [showAdd, setShowAdd] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto flex flex-col">
       <div className="flex-1 overflow-y-auto pb-20">
-        {tab === "home" && <Home onAddClick={() => setShowAdd(true)} />}
+        {tab === "home" && <Home key={refreshKey} onAddClick={() => setShowAdd(true)} />}
         {tab === "analysis" && <Analysis />}
         {tab === "budget" && <Budget />}
       </div>
@@ -37,7 +38,7 @@ export default function App() {
       </nav>
 
       {/* 记账弹窗 */}
-      {showAdd && <AddRecord onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); setTab("home") }} />}
+      {showAdd && <AddRecord onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); setTab("home"); setRefreshKey(k => k + 1) }} />}
     </div>
   )
 }

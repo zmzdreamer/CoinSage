@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -6,7 +7,13 @@ from backend.routers import categories, transactions, budgets, ai
 
 load_dotenv()
 
-app = FastAPI(title="CoinSage API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    with get_db() as db:
+        init_db(db)
+    yield
+
+app = FastAPI(title="CoinSage API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,11 +28,6 @@ app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
 app.include_router(ai.router)
-
-@app.on_event("startup")
-def startup():
-    with get_db() as db:
-        init_db(db)
 
 @app.get("/health")
 def health():

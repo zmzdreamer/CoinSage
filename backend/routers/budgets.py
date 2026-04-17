@@ -48,5 +48,5 @@ def get_current_budget():
         "total_spent": round(total_spent, 2),
         "remaining": round(remaining, 2),
         "days_left": days_left,
-        "daily_allowance": round(remaining / days_left, 2) if days_left > 0 and remaining > 0 else 0
+        "daily_allowance": round(remaining / days_left, 2) if days_left > 0 else 0
     }

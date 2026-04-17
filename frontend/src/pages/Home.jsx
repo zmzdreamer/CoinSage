@@ -48,7 +48,7 @@ export default function Home({ onAddClick }) {
             {transactions.map(t => (
               <div key={t.id} className="flex justify-between items-center bg-white rounded-xl p-3 shadow-sm">
                 <span className="text-gray-700">{t.note || "无备注"}</span>
-                <span className="font-medium text-gray-900">¥{t.amount}</span>
+                <span className="font-medium text-gray-900">¥{Number(t.amount).toFixed(2)}</span>
               </div>
             ))}
           </div>
