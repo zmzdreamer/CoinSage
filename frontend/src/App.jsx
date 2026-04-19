@@ -81,50 +81,25 @@ export default function App() {
 
   return (
     <>
-      {/* ── Desktop top nav (md+) ── */}
-      <nav className="top-nav hidden md:flex">
-        <div className="top-nav-logo">
-          <Icon name="logo" size={28} />
-          CoinSage
-        </div>
-
-        <div className="top-nav-tabs">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              className={`top-nav-tab${tab === t.id ? " active" : ""}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <button className="top-nav-cta" onClick={() => setShowAdd(true)}>
-          + 记一笔
-        </button>
-      </nav>
-
       {/* ── Page content ── */}
-      <main className="min-h-dvh bg-[--c-bg]">
-        {/* Desktop padding-top, mobile padding-top only */}
-        <div className="hidden md:block content-desktop">
-          <div className="page-wrap">
-            {tab === "home"     && <Home key={refreshKey} onAddClick={() => setShowAdd(true)} />}
-            {tab === "analysis" && <Analysis />}
-            {tab === "budget"   && <Budget />}
-          </div>
-        </div>
-
-        <div className="md:hidden content-mobile">
+      <main
+        className="min-h-dvh"
+        style={{
+          background: "var(--c-bg)",
+          /* 顶部留出安全区 + 余量，底部让出 Tab Bar */
+          paddingTop: "calc(env(safe-area-inset-top) + 56px)",
+          paddingBottom: "calc(var(--tab-h) + env(safe-area-inset-bottom) + 8px)",
+        }}
+      >
+        <div className="page-wrap">
           {tab === "home"     && <Home key={refreshKey} onAddClick={() => setShowAdd(true)} />}
           {tab === "analysis" && <Analysis />}
           {tab === "budget"   && <Budget />}
         </div>
       </main>
 
-      {/* ── Mobile bottom tab bar ── */}
-      <nav className="tab-bar md:hidden">
+      {/* ── Bottom Tab Bar（手机 + 桌面通用）── */}
+      <nav className="tab-bar">
         {TABS.map(t => {
           const active = tab === t.id
           const color = active ? "var(--c-blue)" : "var(--c-text-3)"
@@ -135,28 +110,31 @@ export default function App() {
             </button>
           )
         })}
-
-        {/* Mobile FAB — shown only on home */}
-        {tab === "home" && (
-          <button
-            onClick={() => setShowAdd(true)}
-            aria-label="记一笔"
-            style={{
-              position: "fixed", bottom: "calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px)", right: "20px",
-              width: "52px", height: "52px", borderRadius: "50%",
-              background: "var(--c-blue)", border: "none", cursor: "pointer",
-              boxShadow: "var(--sh-btn)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "transform 0.15s, box-shadow 0.15s",
-            }}
-            onMouseDown={e => e.currentTarget.style.transform = "scale(0.93)"}
-            onMouseUp  ={e => e.currentTarget.style.transform = "scale(1)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-          >
-            <Icon name="plus" size={22} color="white" />
-          </button>
-        )}
       </nav>
+
+      {/* ── FAB（所有屏幕，仅首页显示）── */}
+      {tab === "home" && (
+        <button
+          onClick={() => setShowAdd(true)}
+          aria-label="记一笔"
+          style={{
+            position: "fixed",
+            bottom: "calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px)",
+            right: "20px",
+            width: "52px", height: "52px", borderRadius: "50%",
+            background: "var(--c-blue)", border: "none", cursor: "pointer",
+            boxShadow: "var(--sh-btn)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform 0.15s, box-shadow 0.15s",
+            zIndex: 90,
+          }}
+          onMouseDown={e => e.currentTarget.style.transform = "scale(0.93)"}
+          onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <Icon name="plus" size={22} color="white" />
+        </button>
+      )}
 
       {/* ── Add Record Modal ── */}
       {showAdd && (
