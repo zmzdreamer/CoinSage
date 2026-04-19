@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
 
+function StatRow({ label, value, valueColor }) {
+  return (
+    <div className="flex justify-between items-center px-5 py-4">
+      <span className="text-[15px] text-apple-secondary">{label}</span>
+      <span className="text-[15px] font-semibold" style={{ color: valueColor || '#1D1D1F' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
 export default function Budget() {
   const [amount, setAmount] = useState("")
   const [saved, setSaved] = useState(false)
@@ -14,6 +25,7 @@ export default function Budget() {
   }, [])
 
   async function handleSave() {
+    if (!amount || Number(amount) <= 0) return
     const today = new Date()
     await api.setBudget({
       amount: Number(amount),
@@ -26,36 +38,100 @@ export default function Budget() {
     api.getCurrentBudget().then(setBudget)
   }
 
-  return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-bold text-gray-800">月度预算</h1>
+  const pct = budget?.total_budget > 0
+    ? Math.min((budget.total_spent / budget.total_budget) * 100, 100)
+    : 0
+  const progressColor = pct < 60 ? '#34C759' : pct < 85 ? '#FF9F0A' : '#FF3B30'
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <label className="text-sm text-gray-500">本月总预算（元）</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          placeholder="例如 2000"
-          className="w-full text-2xl font-bold border-b-2 border-indigo-500 pb-2 outline-none"
-        />
-        <button
-          onClick={handleSave}
-          disabled={!amount}
-          className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium disabled:opacity-50"
-        >
-          {saved ? "✓ 已保存" : "保存预算"}
-        </button>
+  return (
+    <div className="min-h-full bg-apple-bg">
+      {/* Header */}
+      <div className="pt-14 pb-5 px-5">
+        <p className="text-xs font-medium text-apple-secondary uppercase tracking-widest">本月</p>
+        <h1 className="text-3xl font-bold mt-1 text-apple-primary" style={{ letterSpacing: '-0.5px' }}>
+          预算管理
+        </h1>
       </div>
 
-      {budget?.total_budget > 0 && (
-        <div className="bg-indigo-50 rounded-2xl p-4 space-y-1 text-sm text-indigo-900">
-          <p>月预算：¥{budget.total_budget}</p>
-          <p>已花费：¥{budget.total_spent}</p>
-          <p>剩余：¥{budget.remaining}</p>
-          <p>每日建议上限：¥{budget.daily_allowance}</p>
+      <div className="px-4 space-y-4">
+        {/* Budget input card */}
+        <div className="apple-card overflow-hidden">
+          <div className="px-5 pt-5 pb-4">
+            <label className="text-xs font-medium text-apple-secondary uppercase tracking-widest block mb-3">
+              月度总预算（元���
+            </label>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-light text-apple-secondary">¥</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="0"
+                className="flex-1 bg-transparent outline-none text-apple-primary font-bold"
+                style={{ fontSize: '40px', letterSpacing: '-1.5px' }}
+              />
+            </div>
+          </div>
+
+          <div className="apple-separator" />
+
+          <button
+            onClick={handleSave}
+            disabled={!amount || Number(amount) <= 0}
+            className="w-full py-4 text-[15px] font-semibold transition-all duration-150 active:opacity-60 disabled:opacity-30"
+            style={{ color: '#0071E3' }}
+          >
+            {saved ? '✓ 已保存' : '保存预算'}
+          </button>
         </div>
-      )}
+
+        {/* Budget stats */}
+        {budget?.total_budget > 0 && (
+          <div className="apple-card overflow-hidden">
+            <div className="px-5 pt-4 pb-3">
+              <p className="text-xs font-medium text-apple-secondary uppercase tracking-widest mb-3">本月概览</p>
+              {/* Mini progress bar */}
+              <div className="rounded-full overflow-hidden mb-1" style={{ height: '4px', background: 'rgba(60,60,67,0.12)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${pct}%`, background: progressColor }}
+                />
+              </div>
+              <p className="text-right text-xs" style={{ color: progressColor }}>
+                {pct.toFixed(0)}% 已使用
+              </p>
+            </div>
+
+            <div className="apple-separator mx-5" />
+            <StatRow label="月度预算" value={`¥${budget.total_budget}`} />
+
+            <div className="apple-separator mx-5" />
+            <StatRow
+              label="已花费"
+              value={`¥${budget.total_spent.toFixed(2)}`}
+              valueColor="#FF3B30"
+            />
+
+            <div className="apple-separator mx-5" />
+            <StatRow
+              label="剩余额度"
+              value={`¥${budget.remaining.toFixed(2)}`}
+              valueColor={budget.remaining >= 0 ? '#34C759' : '#FF3B30'}
+            />
+
+            <div className="apple-separator mx-5" />
+            <StatRow
+              label="每日建议上限"
+              value={`¥${budget.daily_allowance.toFixed(2)}`}
+              valueColor={budget.daily_allowance >= 0 ? '#0071E3' : '#FF3B30'}
+            />
+
+            <div className="apple-separator mx-5" />
+            <StatRow label="剩余天数" value={`${budget.days_left} 天`} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
