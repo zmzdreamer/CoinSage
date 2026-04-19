@@ -1,36 +1,142 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
 
-function ProgressBar({ pct }) {
-  const color = pct < 60 ? '#34C759' : pct < 85 ? '#FF9F0A' : '#FF3B30'
+/* ─── Helpers ─── */
+function fmt(n) { return n != null ? Number(n).toFixed(2) : "—" }
+
+function progressColor(pct) {
+  if (pct < 60)  return "var(--c-green)"
+  if (pct < 85)  return "var(--c-orange)"
+  return "var(--c-red)"
+}
+
+/* ─── Sub-components ─── */
+function BudgetHeroCard({ budget, pct }) {
+  const color = progressColor(pct)
   return (
-    <div className="rounded-full overflow-hidden" style={{ height: '4px', background: 'rgba(60,60,67,0.12)' }}>
-      <div
-        className="h-full rounded-full transition-all duration-700 ease-out"
-        style={{ width: `${pct}%`, background: color }}
-      />
+    <div className="card card-hover bento-2 fade-up p-6 md:p-8" style={{ animationDelay: "0ms" }}>
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+            本月支出
+          </p>
+          <p style={{ fontSize: "clamp(36px, 5vw, 54px)", fontWeight: 700, letterSpacing: "-1.5px", color: "var(--c-text-1)", lineHeight: 1.05, marginTop: "6px" }}>
+            ¥{fmt(budget?.total_spent)}
+          </p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+            月预算
+          </p>
+          <p style={{ fontSize: "22px", fontWeight: 700, color: "var(--c-text-1)", marginTop: "6px", letterSpacing: "-0.5px" }}>
+            ¥{budget?.total_budget ?? "未设置"}
+          </p>
+        </div>
+      </div>
+
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+
+      <div className="flex justify-between items-center mt-4">
+        <div>
+          <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "2px" }}>剩余</p>
+          <p style={{ fontSize: "17px", fontWeight: 600, color: (budget?.remaining ?? 0) < 0 ? "var(--c-red)" : "var(--c-text-1)" }}>
+            ¥{fmt(budget?.remaining)}
+          </p>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "2px" }}>已使用</p>
+          <p style={{ fontSize: "17px", fontWeight: 600, color }}>
+            {pct.toFixed(0)}%
+          </p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "2px" }}>剩余天数</p>
+          <p style={{ fontSize: "17px", fontWeight: 600, color: "var(--c-text-1)" }}>
+            {budget?.days_left ?? "—"} 天
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
 
-function TransactionRow({ t, isLast }) {
-  const time = new Date(t.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+function DailyCard({ budget }) {
+  const allowance = budget?.daily_allowance ?? 0
+  const isOver = allowance < 0
   return (
-    <>
-      <div className="flex justify-between items-center px-5 py-3.5">
-        <div>
-          <p className="font-medium text-[15px] text-apple-primary">{t.note || '支出'}</p>
-          <p className="text-xs mt-0.5 text-apple-secondary">{time}</p>
-        </div>
-        <p className="text-[15px] font-semibold" style={{ color: '#FF3B30' }}>
-          −¥{Number(t.amount).toFixed(2)}
-        </p>
-      </div>
-      {!isLast && <div className="ml-5 apple-separator" />}
-    </>
+    <div className="card card-hover fade-up p-6" style={{ animationDelay: "60ms" }}>
+      <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+        每日额度
+      </p>
+      <p style={{ fontSize: "36px", fontWeight: 700, letterSpacing: "-1px", color: isOver ? "var(--c-red)" : "var(--c-green)", marginTop: "8px", lineHeight: 1.1 }}>
+        ¥{fmt(allowance)}
+      </p>
+      <p style={{ fontSize: "13px", color: "var(--c-text-2)", marginTop: "8px" }}>
+        {isOver ? "本月已超支" : `还有 ${budget?.days_left ?? "—"} 天`}
+      </p>
+    </div>
   )
 }
 
+function TodayTotalCard({ total, count }) {
+  return (
+    <div className="card card-hover fade-up p-6" style={{ animationDelay: "80ms" }}>
+      <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+        今日支出
+      </p>
+      <p style={{ fontSize: "36px", fontWeight: 700, letterSpacing: "-1px", color: "var(--c-text-1)", marginTop: "8px", lineHeight: 1.1 }}>
+        ¥{total.toFixed(2)}
+      </p>
+      <p style={{ fontSize: "13px", color: "var(--c-text-2)", marginTop: "8px" }}>
+        {count} 笔记录
+      </p>
+    </div>
+  )
+}
+
+function TransactionList({ transactions }) {
+  if (transactions.length === 0) return (
+    <div className="card fade-up" style={{ animationDelay: "120ms", padding: "48px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-3)" strokeWidth="1.2">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 8v4l3 3" strokeLinecap="round"/>
+      </svg>
+      <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--c-text-1)" }}>今日暂无记录</p>
+      <p style={{ fontSize: "13px", color: "var(--c-text-2)" }}>点击「记一笔」开始记账</p>
+    </div>
+  )
+
+  return (
+    <div className="card bento-3 fade-up overflow-hidden" style={{ animationDelay: "120ms" }}>
+      <div style={{ padding: "20px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--c-text-1)" }}>今日记录</p>
+        <p style={{ fontSize: "13px", color: "var(--c-text-2)" }}>{transactions.length} 笔</p>
+      </div>
+
+      {transactions.map((t, i) => {
+        const time = new Date(t.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+        return (
+          <div key={t.id}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 24px" }}>
+              <div>
+                <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--c-text-1)" }}>{t.note || "支出"}</p>
+                <p style={{ fontSize: "12px", color: "var(--c-text-3)", marginTop: "2px" }}>{time}</p>
+              </div>
+              <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--c-red)", fontVariantNumeric: "tabular-nums" }}>
+                −¥{Number(t.amount).toFixed(2)}
+              </p>
+            </div>
+            {i < transactions.length - 1 && <div className="sep" style={{ marginLeft: "24px" }} />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── Page ─── */
 export default function Home({ onAddClick }) {
   const [budget, setBudget] = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -46,108 +152,29 @@ export default function Home({ onAddClick }) {
     : 0
 
   const now = new Date()
-  const dateStr = now.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+  const dateStr = now.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" })
 
   return (
-    <div className="min-h-full bg-apple-bg">
-      {/* Header */}
-      <div className="pt-14 pb-5 px-5">
-        <p className="text-xs font-medium text-apple-secondary uppercase tracking-widest">{dateStr}</p>
-        <h1 className="text-3xl font-bold mt-1 text-apple-primary" style={{ letterSpacing: '-0.5px' }}>
+    <div>
+      {/* Page header */}
+      <div style={{ marginBottom: "28px" }}>
+        <p style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.1em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+          {dateStr}
+        </p>
+        <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, letterSpacing: "-0.5px", color: "var(--c-text-1)", marginTop: "4px", lineHeight: 1.1 }}>
           今日概览
         </h1>
       </div>
 
-      {/* Budget Card */}
-      <div className="mx-4 mb-4 apple-card p-5">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <p className="text-xs font-medium text-apple-secondary uppercase tracking-wider">本月支出</p>
-            <p className="mt-1 font-bold text-apple-primary" style={{ fontSize: '36px', letterSpacing: '-1.5px', lineHeight: 1.1 }}>
-              ¥{budget?.total_spent?.toFixed(2) ?? '—'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-medium text-apple-secondary uppercase tracking-wider">月预算</p>
-            <p className="mt-1 text-xl font-semibold text-apple-primary">
-              ¥{budget?.total_budget ?? '未设置'}
-            </p>
-          </div>
-        </div>
-
-        <ProgressBar pct={pct} />
-
-        <div className="flex justify-between mt-3">
-          <div>
-            <p className="text-xs text-apple-secondary">剩余</p>
-            <p className="text-sm font-semibold mt-0.5 text-apple-primary">
-              ¥{budget?.remaining?.toFixed(2) ?? '—'}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-apple-secondary">剩��天数</p>
-            <p className="text-sm font-semibold mt-0.5 text-apple-primary">{budget?.days_left ?? '—'} 天</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-apple-secondary">每日额度</p>
-            <p
-              className="text-sm font-semibold mt-0.5"
-              style={{ color: (budget?.daily_allowance ?? 0) < 0 ? '#FF3B30' : '#34C759' }}
-            >
-              ¥{budget?.daily_allowance?.toFixed(2) ?? '—'}
-            </p>
-          </div>
-        </div>
+      {/* Bento grid */}
+      <div className="bento">
+        <BudgetHeroCard budget={budget} pct={pct} />
+        <DailyCard budget={budget} />
+        <TodayTotalCard total={todayTotal} count={transactions.length} />
+        <TransactionList transactions={transactions} />
       </div>
 
-      {/* Today Transactions */}
-      <div className="mx-4">
-        <div className="flex justify-between items-center mb-3 px-1">
-          <h2 className="text-base font-semibold text-apple-primary">今日记录</h2>
-          {transactions.length > 0 && (
-            <span className="text-sm font-medium" style={{ color: '#0071E3' }}>
-              共 ¥{todayTotal.toFixed(2)}
-            </span>
-          )}
-        </div>
-
-        <div className="apple-card overflow-hidden">
-          {transactions.length === 0 ? (
-            <div className="py-14 flex flex-col items-center gap-2">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#C7C7CC" strokeWidth="1.5"/>
-                <path d="M12 8v4l3 3" stroke="#C7C7CC" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <p className="text-[15px] font-medium text-apple-primary mt-1">今日暂无记录</p>
-              <p className="text-sm text-apple-secondary">点击右下角按钮开始记账</p>
-            </div>
-          ) : (
-            transactions.map((t, i) => (
-              <TransactionRow key={t.id} t={t} isLast={i === transactions.length - 1} />
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* FAB */}
-      <button
-        onClick={onAddClick}
-        className="fixed flex items-center justify-center text-white transition-transform duration-150 active:scale-95"
-        style={{
-          bottom: '80px',
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: '#0071E3',
-          boxShadow: '0 4px 20px rgba(0,113,227,0.45)',
-        }}
-        aria-label="记一笔"
-      >
-        <svg width="22" height="22" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-      </button>
+      {/* Mobile: only show FAB via App.jsx — desktop: no FAB (use top nav button) */}
     </div>
   )
 }
