@@ -33,6 +33,18 @@ function EditIcon() {
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+    </svg>
+  )
+}
+
 /* ─── Budget Hero Card ─── */
 function BudgetHeroCard({ budget, pct }) {
   const color = progressColor(pct)
@@ -97,15 +109,29 @@ function TodayTotalCard({ total, count }) {
       <p style={{ fontSize: "32px", fontWeight: 700, letterSpacing: "-1px", color: "var(--c-text-1)", marginTop: "8px", lineHeight: 1.1 }}>
         ¥{total.toFixed(2)}
       </p>
-      <p style={{ fontSize: "12px", color: "var(--c-text-2)", marginTop: "8px" }}>{count} ��记录</p>
+      <p style={{ fontSize: "12px", color: "var(--c-text-2)", marginTop: "8px" }}>{count} 条记录</p>
     </div>
   )
 }
 
 /* ─── 单个分类列 ─── */
-function CategoryColumn({ category, items, total, onEdit, delay }) {
+function CategoryColumn({ category, items, total, onEdit, onDelete, delay }) {
   const p = palette(category.name)
   const isEmpty = items.length === 0
+  // 记录正在等待二次确认的 id
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
+
+  function handleDeleteClick(id) {
+    if (pendingDeleteId === id) {
+      // 二次点击 → 真正删除
+      onDelete(id)
+      setPendingDeleteId(null)
+    } else {
+      setPendingDeleteId(id)
+      // 3 秒后自动取消确认状态
+      setTimeout(() => setPendingDeleteId(null), 3000)
+    }
+  }
 
   return (
     <div
@@ -194,32 +220,50 @@ function CategoryColumn({ category, items, total, onEdit, delay }) {
                   }}>
                     −¥{Number(t.amount).toFixed(2)}
                   </span>
+                  {/* 编辑 */}
                   <button
                     onClick={() => onEdit(t)}
                     title="编辑"
                     aria-label={`编辑 ${t.note || "支出"}`}
                     style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "4px",
-                      borderRadius: "6px",
-                      color: "var(--c-text-3)",
-                      display: "flex",
-                      alignItems: "center",
-                      flexShrink: 0,
-                      transition: "background 0.15s, color 0.15s",
+                      background: "none", border: "none", cursor: "pointer",
+                      padding: "4px", borderRadius: "6px",
+                      color: "var(--c-text-3)", display: "flex", alignItems: "center",
+                      flexShrink: 0, transition: "background 0.15s, color 0.15s",
                     }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = p.bg
-                      e.currentTarget.style.color = p.accent
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = "none"
-                      e.currentTarget.style.color = "var(--c-text-3)"
-                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = p.bg; e.currentTarget.style.color = p.accent }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--c-text-3)" }}
                   >
                     <EditIcon />
+                  </button>
+
+                  {/* 删除（二次确认） */}
+                  <button
+                    onClick={() => handleDeleteClick(t.id)}
+                    title={pendingDeleteId === t.id ? "再次点击确认删除" : "删除"}
+                    aria-label={`删除 ${t.note || "支出"}`}
+                    style={{
+                      background: pendingDeleteId === t.id ? "rgba(255,59,48,0.1)" : "none",
+                      border: "none", cursor: "pointer",
+                      padding: "4px", borderRadius: "6px",
+                      color: pendingDeleteId === t.id ? "var(--c-red)" : "var(--c-text-3)",
+                      display: "flex", alignItems: "center",
+                      flexShrink: 0, transition: "background 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={e => {
+                      if (pendingDeleteId !== t.id) {
+                        e.currentTarget.style.background = "rgba(255,59,48,0.08)"
+                        e.currentTarget.style.color = "var(--c-red)"
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (pendingDeleteId !== t.id) {
+                        e.currentTarget.style.background = "none"
+                        e.currentTarget.style.color = "var(--c-text-3)"
+                      }
+                    }}
+                  >
+                    <TrashIcon />
                   </button>
                 </div>
                 {i < items.length - 1 && (
@@ -248,7 +292,7 @@ function CategoryColumn({ category, items, total, onEdit, delay }) {
 }
 
 /* ─── 分类分栏区域 ─── */
-function CategoryGrid({ categories, transactions, onEdit }) {
+function CategoryGrid({ categories, transactions, onEdit, onDelete }) {
   // 按分类分组
   const grouped = {}
   categories.forEach(c => { grouped[c.id] = { items: [], total: 0 } })
@@ -271,6 +315,7 @@ function CategoryGrid({ categories, transactions, onEdit }) {
           items={grouped[cat.id]?.items ?? []}
           total={grouped[cat.id]?.total ?? 0}
           onEdit={onEdit}
+          onDelete={onDelete}
           delay={140 + i * 30}
         />
       ))}
@@ -288,6 +333,11 @@ export default function Home({ onAddClick }) {
   function loadData() {
     api.getCurrentBudget().then(setBudget)
     api.getTodayTransactions().then(setTransactions)
+  }
+
+  async function handleDelete(id) {
+    await api.deleteTransaction(id)
+    loadData()
   }
 
   useEffect(() => {
@@ -335,6 +385,7 @@ export default function Home({ onAddClick }) {
         categories={categories}
         transactions={transactions}
         onEdit={setEditingTx}
+        onDelete={handleDelete}
       />
 
       {/* 编辑弹窗 */}

@@ -16,7 +16,7 @@ def _load_category_map(db) -> dict:
 
 def _fmt_transactions(rows, category_map: dict) -> str:
     if not rows:
-        return "��暂无记录）"
+        return "暂无记录）"
     return "\n".join(
         f"- [{category_map.get(r['category_id'], '其他')}] {r['note'] or '无备注'}: ¥{r['amount']}"
         for r in rows
