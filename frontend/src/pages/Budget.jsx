@@ -121,7 +121,7 @@ export default function Budget() {
 
             <div className="sep" style={{ margin: "0 24px" }} />
 
-            <StatRow label="���度预算"   value={`¥${budget.total_budget}`} />
+            <StatRow label="月度预算"   value={`¥${budget.total_budget}`} />
             <StatRow label="已花费"     value={`¥${Number(budget.total_spent).toFixed(2)}`}    valueColor="var(--c-red)" />
             <StatRow label="剩余额度"   value={`¥${Number(budget.remaining).toFixed(2)}`}      valueColor={budget.remaining >= 0 ? "var(--c-green)" : "var(--c-red)"} />
             <StatRow label="每日建议"   value={`¥${Number(budget.daily_allowance).toFixed(2)}`} valueColor={budget.daily_allowance >= 0 ? "var(--c-blue)" : "var(--c-red)"} />

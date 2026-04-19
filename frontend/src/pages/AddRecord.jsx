@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react"
 import { api } from "../api"
 
-export default function AddRecord({ onClose, onSaved }) {
+// editData: { id, amount, category_id, note } — 传入则为编辑模式
+export default function AddRecord({ onClose, onSaved, editData }) {
+  const isEdit = !!editData
   const [categories, setCategories] = useState([])
-  const [amount, setAmount] = useState("")
-  const [categoryId, setCategoryId] = useState(null)
-  const [note, setNote] = useState("")
+  const [amount, setAmount] = useState(editData ? String(editData.amount) : "")
+  const [categoryId, setCategoryId] = useState(editData?.category_id ?? null)
+  const [note, setNote] = useState(editData?.note ?? "")
   const [loading, setLoading] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
     api.getCategories().then(cats => {
       setCategories(cats)
-      if (cats.length) setCategoryId(cats[0].id)
+      // 新建模式且还没选分类时，默认选第一个
+      if (!isEdit && cats.length) setCategoryId(cats[0].id)
     })
     setTimeout(() => inputRef.current?.focus(), 150)
   }, [])
@@ -22,12 +25,20 @@ export default function AddRecord({ onClose, onSaved }) {
   async function handleSave() {
     if (!isValid || loading) return
     setLoading(true)
-    await api.createTransaction({
-      amount: Number(amount),
-      category_id: categoryId,
-      note,
-      date: new Date().toISOString().split("T")[0],
-    })
+    if (isEdit) {
+      await api.updateTransaction(editData.id, {
+        amount: Number(amount),
+        category_id: categoryId,
+        note,
+      })
+    } else {
+      await api.createTransaction({
+        amount: Number(amount),
+        category_id: categoryId,
+        note,
+        date: new Date().toISOString().split("T")[0],
+      })
+    }
     setLoading(false)
     onSaved()
   }
@@ -57,7 +68,7 @@ export default function AddRecord({ onClose, onSaved }) {
           >
             取消
           </button>
-          <h2 style={{ fontSize: "17px", fontWeight: 600, color: "var(--c-text-1)", margin: 0 }}>记一笔</h2>
+          <h2 style={{ fontSize: "17px", fontWeight: 600, color: "var(--c-text-1)", margin: 0 }}>{isEdit ? "编辑支出" : "记一笔"}</h2>
           <button
             onClick={handleSave}
             disabled={!isValid || loading}
@@ -152,7 +163,7 @@ export default function AddRecord({ onClose, onSaved }) {
                 </svg>
                 保存中…
               </>
-            ) : "确认记账"}
+            ) : isEdit ? "保存修改" : "确认记账"}
           </button>
         </div>
       </div>

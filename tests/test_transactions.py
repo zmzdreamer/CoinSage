@@ -22,3 +22,18 @@ def test_delete_transaction():
     created = client.post("/api/transactions", json=payload).json()
     response = client.delete(f"/api/transactions/{created['id']}")
     assert response.status_code == 204
+
+def test_update_transaction():
+    payload = {"amount": 30.0, "category_id": 1, "note": "原始", "date": "2026-04-15"}
+    created = client.post("/api/transactions", json=payload).json()
+    update = {"amount": 55.5, "category_id": 2, "note": "修改后"}
+    response = client.patch(f"/api/transactions/{created['id']}", json=update)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["amount"] == 55.5
+    assert data["category_id"] == 2
+    assert data["note"] == "修改后"
+
+def test_update_transaction_not_found():
+    response = client.patch("/api/transactions/99999", json={"amount": 1.0, "category_id": 1, "note": ""})
+    assert response.status_code == 404

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, HTTPException, Response
 from typing import Optional
 from datetime import date as date_type
 from backend.database import get_db
-from backend.models import Transaction, TransactionCreate
+from backend.models import Transaction, TransactionCreate, TransactionUpdate
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -35,6 +35,19 @@ def list_transactions(date: Optional[date_type] = None, month: Optional[str] = N
                 "SELECT * FROM transactions ORDER BY date DESC LIMIT 100"
             ).fetchall()
     return [dict(row) for row in rows]
+
+@router.patch("/{tx_id}", response_model=Transaction)
+def update_transaction(tx_id: int, body: TransactionUpdate):
+    with get_db() as db:
+        db.execute(
+            "UPDATE transactions SET amount=?, category_id=?, note=? WHERE id=?",
+            (body.amount, body.category_id, body.note, tx_id)
+        )
+        db.commit()
+        row = db.execute("SELECT * FROM transactions WHERE id=?", (tx_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return dict(row)
 
 @router.delete("/{tx_id}", status_code=204)
 def delete_transaction(tx_id: int):

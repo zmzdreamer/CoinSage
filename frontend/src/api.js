@@ -18,6 +18,14 @@ export const api = {
     })
     return r.json()
   },
+  async updateTransaction(id, data) {
+    const r = await fetch(`${BASE}/transactions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return r.json()
+  },
   async deleteTransaction(id) {
     await fetch(`${BASE}/transactions/${id}`, { method: "DELETE" })
   },

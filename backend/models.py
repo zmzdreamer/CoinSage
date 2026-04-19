@@ -18,6 +18,11 @@ class Transaction(TransactionCreate):
     id: int
     created_at: datetime
 
+class TransactionUpdate(BaseModel):
+    amount: float
+    category_id: int
+    note: str = ""
+
 class BudgetCreate(BaseModel):
     category_id: Optional[int] = None
     amount: float
