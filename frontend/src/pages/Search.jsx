@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../api"
 
 function useDebounce(value, delay = 400) {
@@ -27,10 +27,22 @@ export default function Search({ onClose }) {
   const [dateFrom, setDateFrom]     = useState("")
   const [dateTo, setDateTo]         = useState("")
   const [results, setResults]       = useState([])
-  const [loading, setLoading]       = useState(false)
   const [searched, setSearched]     = useState(false)
+  const [completedKey, setCompletedKey] = useState(null)
 
   const debouncedQ = useDebounce(q)
+
+  // Immediate filter check using raw state (for render feedback before debounce fires)
+  const hasFilter = Boolean(q || selCat || amtMin || amtMax || dateFrom || dateTo)
+
+  // Stable key from debounced values — null means no active filter
+  const currentKey = useMemo(() => {
+    if (!debouncedQ && !selCat && !amtMin && !amtMax && !dateFrom && !dateTo) return null
+    return `${debouncedQ}:${selCat}:${amtMin}:${amtMax}:${dateFrom}:${dateTo}`
+  }, [debouncedQ, selCat, amtMin, amtMax, dateFrom, dateTo])
+
+  // Derived loading: filter active but results not yet received for current key
+  const loading = hasFilter && (!currentKey || currentKey !== completedKey)
 
   useEffect(() => {
     api.getCategories().then(setCategories)
@@ -38,10 +50,9 @@ export default function Search({ onClose }) {
   }, [])
 
   useEffect(() => {
-    const hasFilter = debouncedQ || selCat || amtMin || amtMax || dateFrom || dateTo
-    if (!hasFilter) { setResults([]); setSearched(false); return }
+    if (!currentKey) return
 
-    setLoading(true)
+    const ac = new AbortController()
     api.searchTransactions({
       q: debouncedQ || undefined,
       category_id: selCat || undefined,
@@ -50,18 +61,24 @@ export default function Search({ onClose }) {
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
     })
-      .then(r => { setResults(r); setSearched(true) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [debouncedQ, selCat, amtMin, amtMax, dateFrom, dateTo])
+      .then(r => {
+        if (ac.signal.aborted) return
+        setResults(r)
+        setSearched(true)
+        setCompletedKey(currentKey)
+      })
+      .catch(() => {
+        if (ac.signal.aborted) return
+        setCompletedKey(currentKey)
+      })
+    return () => ac.abort()
+  }, [currentKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function clearAll() {
     setQ(""); setSelCat(null); setAmtMin(""); setAmtMax("")
     setDateFrom(""); setDateTo(""); setResults([]); setSearched(false)
     inputRef.current?.focus()
   }
-
-  const hasFilter = q || selCat || amtMin || amtMax || dateFrom || dateTo
 
   const inputBase = {
     background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
@@ -175,18 +192,18 @@ export default function Search({ onClose }) {
 
       {/* 结果列表 */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-        {loading ? (
+        {!hasFilter ? (
+          <div style={{ textAlign: "center", paddingTop: "60px", color: "var(--c-text-3)" }}>
+            <p style={{ fontSize: "32px", marginBottom: "12px" }}>🔍</p>
+            <p style={{ fontSize: "14px" }}>输入关键词或选择条件开始搜索</p>
+          </div>
+        ) : loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {[...Array(4)].map((_, i) => (
               <div key={i} className="skeleton" style={{ height: "60px", borderRadius: "var(--r-md)" }} />
             ))}
           </div>
-        ) : !searched ? (
-          <div style={{ textAlign: "center", paddingTop: "60px", color: "var(--c-text-3)" }}>
-            <p style={{ fontSize: "32px", marginBottom: "12px" }}>🔍</p>
-            <p style={{ fontSize: "14px" }}>输入关键词或选择条件开始搜索</p>
-          </div>
-        ) : results.length === 0 ? (
+        ) : searched && results.length === 0 ? (
           <div style={{ textAlign: "center", paddingTop: "60px", color: "var(--c-text-3)" }}>
             <p style={{ fontSize: "32px", marginBottom: "12px" }}>📭</p>
             <p style={{ fontSize: "14px" }}>没有找到匹配的记录</p>

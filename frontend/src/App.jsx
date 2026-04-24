@@ -115,15 +115,6 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  if (loading) return <Spinner />
-  if (!user)   return <Login />
-
-  function handleSaved() {
-    setShowAdd(false)
-    setTab("home")
-    setRefreshKey(k => k + 1)
-  }
-
   useEffect(() => {
     function onKey(e) {
       if (e.key !== "n" && e.key !== "N") return
@@ -134,6 +125,15 @@ export default function App() {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
+
+  if (loading) return <Spinner />
+  if (!user)   return <Login />
+
+  function handleSaved() {
+    setShowAdd(false)
+    setTab("home")
+    setRefreshKey(k => k + 1)
+  }
 
   const btnBase = {
     background: "var(--c-fill)", border: "none", borderRadius: "8px",
