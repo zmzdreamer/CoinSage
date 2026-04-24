@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
+import { useToast } from "../ToastContext"
+import AddRecord from "./AddRecord"
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"]
 
@@ -48,11 +50,13 @@ function DownloadIcon() {
 }
 
 export default function History() {
+  const showToast = useToast()
   const [month, setMonth] = useState(currentYM)
   const [transactions, setTransactions] = useState([])
   const [categoryMap, setCategoryMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [editingTx, setEditingTx] = useState(null)
 
   const isCurrentMonth = month === currentYM()
 
@@ -70,6 +74,16 @@ export default function History() {
       .then(setTransactions)
       .finally(() => setLoading(false))
   }, [month])
+
+  async function handleDelete(id) {
+    try {
+      await api.deleteTransaction(id)
+      setTransactions(prev => prev.filter(t => t.id !== id))
+      showToast("记录已删除")
+    } catch {
+      showToast("删除失败", "error")
+    }
+  }
 
   async function handleExport() {
     setExporting(true)
@@ -190,7 +204,7 @@ export default function History() {
                   const time = new Date(t.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
                   return (
                     <div key={t.id}>
-                      <div style={{ display: "flex", alignItems: "center", padding: "11px 16px", gap: "10px" }}>
+                      <div className="tx-row" style={{ display: "flex", alignItems: "center", padding: "11px 16px", gap: "10px" }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--c-text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {t.note || "支出"}
@@ -202,6 +216,29 @@ export default function History() {
                         <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--c-red)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
                           −¥{fmt(t.amount)}
                         </span>
+                        <div className="row-actions" style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                          <button onClick={() => setEditingTx(t)}
+                            style={{ width: "28px", height: "28px", borderRadius: "8px", border: "none",
+                                     background: "rgba(59,130,246,0.12)", cursor: "pointer",
+                                     display: "flex", alignItems: "center", justifyContent: "center",
+                                     color: "var(--c-blue)" }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDelete(t.id)}
+                            style={{ width: "28px", height: "28px", borderRadius: "8px", border: "none",
+                                     background: "rgba(239,68,68,0.12)", cursor: "pointer",
+                                     display: "flex", alignItems: "center", justifyContent: "center",
+                                     color: "var(--c-red)" }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                              <path d="M10 11v6M14 11v6"/>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       {i < items.length - 1 && (
                         <div style={{ height: "0.5px", background: "var(--c-sep)", margin: "0 16px" }} />
@@ -213,6 +250,17 @@ export default function History() {
             )
           })}
         </div>
+      )}
+
+      {editingTx && (
+        <AddRecord
+          editData={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSaved={() => {
+            setEditingTx(null)
+            api.getMonthTransactions(month).then(setTransactions)
+          }}
+        />
       )}
     </div>
   )
