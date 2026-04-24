@@ -313,6 +313,27 @@ function CategoryColumn({ category, items, total, onEdit, onDelete, delay, month
   )
 }
 
+/* ─── 骨架屏 ─── */
+function HomeSkeleton() {
+  const sk = { borderRadius: "var(--r-lg)", background: "var(--c-fill)" }
+  return (
+    <div>
+      <div className="bento" style={{ marginBottom: "20px" }}>
+        <div className="skeleton bento-2" style={{ ...sk, height: "160px" }} />
+        <div className="skeleton" style={{ ...sk, height: "160px" }} />
+        <div className="skeleton" style={{ ...sk, height: "160px" }} />
+      </div>
+      <div style={{ height: "20px", width: "120px", borderRadius: "6px" }} className="skeleton" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))",
+                    gap: "12px", marginTop: "12px" }}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="skeleton" style={{ ...sk, height: "200px" }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ─── 分类分栏区域 ─── */
 function CategoryGrid({ categories, transactions, onEdit, onDelete, monthSpentByCategory, categoryBudgetMap }) {
   // 按分类分组
@@ -356,26 +377,32 @@ export default function Home({ onAddClick }) {
   const [editingTx, setEditingTx] = useState(null)
   const [monthSpentByCategory, setMonthSpentByCategory] = useState({})
   const [categoryBudgetMap, setCategoryBudgetMap] = useState({})
+  const [loadingData, setLoadingData] = useState(true)
 
   async function loadData() {
-    const today = new Date()
-    const month = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`
-    const [budget, txToday, txMonth, catBudgets] = await Promise.all([
-      api.getCurrentBudget(),
-      api.getTodayTransactions(),
-      api.getMonthTransactions(month),
-      api.getCategoryBudgets(today.getFullYear(), today.getMonth()+1),
-    ])
-    setBudget(budget)
-    setTransactions(txToday)
+    setLoadingData(true)
+    try {
+      const today = new Date()
+      const month = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`
+      const [budget, txToday, txMonth, catBudgets] = await Promise.all([
+        api.getCurrentBudget(),
+        api.getTodayTransactions(),
+        api.getMonthTransactions(month),
+        api.getCategoryBudgets(today.getFullYear(), today.getMonth()+1),
+      ])
+      setBudget(budget)
+      setTransactions(txToday)
 
-    const spent = {}
-    txMonth.forEach(t => { spent[t.category_id] = (spent[t.category_id] || 0) + t.amount })
-    setMonthSpentByCategory(spent)
+      const spent = {}
+      txMonth.forEach(t => { spent[t.category_id] = (spent[t.category_id] || 0) + t.amount })
+      setMonthSpentByCategory(spent)
 
-    const bmap = {}
-    catBudgets.filter(b => b.category_id !== null).forEach(b => { bmap[b.category_id] = b.amount })
-    setCategoryBudgetMap(bmap)
+      const bmap = {}
+      catBudgets.filter(b => b.category_id !== null).forEach(b => { bmap[b.category_id] = b.amount })
+      setCategoryBudgetMap(bmap)
+    } finally {
+      setLoadingData(false)
+    }
   }
 
   async function handleDelete(id) {
@@ -396,6 +423,8 @@ export default function Home({ onAddClick }) {
 
   const now = new Date()
   const dateStr = now.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" })
+
+  if (loadingData && !budget) return <HomeSkeleton />
 
   return (
     <div>
