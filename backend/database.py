@@ -83,6 +83,19 @@ def init_db(conn: sqlite3.Connection):
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('医疗',   '#ef4444', 'heart'))
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('其他',   '#6b7280', 'more-horizontal'))
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS recurring_templates (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT    NOT NULL,
+            amount       REAL    NOT NULL CHECK(amount > 0),
+            category_id  INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+            day_of_month INTEGER NOT NULL CHECK(day_of_month >= 1 AND day_of_month <= 28),
+            note         TEXT    NOT NULL DEFAULT '',
+            active       INTEGER NOT NULL DEFAULT 1,
+            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Seed default admin account
     admin_username = os.getenv("ADMIN_USERNAME", "admin")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
