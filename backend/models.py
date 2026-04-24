@@ -32,3 +32,27 @@ class BudgetCreate(BaseModel):
 
 class Budget(BudgetCreate):
     id: int
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserInfo(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserInfo
+
+class AISettingUpdate(BaseModel):
+    provider: str
+    model: str
+    api_key: str
+    base_url: Optional[str] = None
+    enabled: bool = True
+
+class AISetting(AISettingUpdate):
+    updated_at: str

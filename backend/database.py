@@ -1,6 +1,9 @@
 import sqlite3
 import os
 from contextlib import contextmanager
+from passlib.context import CryptContext
+
+_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 DB_PATH = os.getenv("DB_PATH", "coinsage.db")
 
@@ -50,6 +53,28 @@ def init_db(conn: sqlite3.Connection):
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            username      TEXT    NOT NULL UNIQUE,
+            password_hash TEXT    NOT NULL,
+            is_admin      INTEGER NOT NULL DEFAULT 0,
+            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ai_settings (
+            id        INTEGER PRIMARY KEY DEFAULT 1 CHECK(id = 1),
+            provider  TEXT    NOT NULL DEFAULT 'openai',
+            model     TEXT    NOT NULL DEFAULT 'gpt-4o-mini',
+            api_key   TEXT    NOT NULL DEFAULT '',
+            base_url  TEXT,
+            enabled   INTEGER NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Insert default categories (使用 INSERT OR IGNORE 保证幂等)
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('餐饮',   '#f97316', 'utensils'))
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('交通',   '#3b82f6', 'car'))
@@ -57,5 +82,14 @@ def init_db(conn: sqlite3.Connection):
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('娱乐',   '#8b5cf6', 'gamepad'))
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('医疗',   '#ef4444', 'heart'))
     conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('其他',   '#6b7280', 'more-horizontal'))
+
+    # Seed default admin account
+    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    admin_hash = _pwd_ctx.hash(admin_password)
+    conn.execute(
+        "INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
+        (admin_username, admin_hash)
+    )
 
     conn.commit()

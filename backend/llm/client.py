@@ -21,22 +21,35 @@ def load_prompt(name: str) -> str:
 
 
 class LLMClient:
-    """Unified LLM client supporting OpenAI, Anthropic, and Ollama.
+    """Unified LLM client supporting OpenAI-compatible APIs, Anthropic, and Ollama.
 
     Configuration via environment variables:
         - ENABLE_AI: "true" or "false" to enable/disable AI features
         - LLM_PROVIDER: "openai", "anthropic", or "ollama"
-        - LLM_MODEL: Model name (e.g., "gpt-4o-mini", "claude-3-5-sonnet-20241022")
-        - LLM_API_KEY: API key for OpenAI or Anthropic
+        - LLM_MODEL: Model name
+        - LLM_API_KEY: API key
+        - LLM_BASE_URL: Custom base URL for OpenAI-compatible providers
+                        (Kimi: https://api.moonshot.cn/v1
+                         Qwen: https://dashscope.aliyuncs.com/compatible-mode/v1
+                         DeepSeek: https://api.deepseek.com/v1
+                         豆包: https://ark.cn-beijing.volces.com/api/v3
+                         SiliconFlow 等中转站: https://api.siliconflow.cn/v1)
         - OLLAMA_BASE_URL: Base URL for Ollama (default: http://localhost:11434)
     """
 
-    def __init__(self):
-        """Initialize the LLM client with configuration from environment variables."""
-        self.enabled = os.getenv("ENABLE_AI", "false").lower() == "true"
-        self.provider = os.getenv("LLM_PROVIDER", "openai")
-        self.model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        self.api_key = os.getenv("LLM_API_KEY", "")
+    def __init__(self, config: dict | None = None):
+        """Initialize the LLM client.
+
+        Args:
+            config: Optional dict with keys provider/model/api_key/base_url/enabled.
+                    If provided, takes precedence over environment variables.
+        """
+        cfg = config or {}
+        self.enabled  = bool(cfg.get("enabled",  os.getenv("ENABLE_AI", "false").lower() == "true"))
+        self.provider = cfg.get("provider",  os.getenv("LLM_PROVIDER", "openai"))
+        self.model    = cfg.get("model",     os.getenv("LLM_MODEL", "gpt-4o-mini"))
+        self.api_key  = cfg.get("api_key",   os.getenv("LLM_API_KEY", ""))
+        self.base_url = cfg.get("base_url",  os.getenv("LLM_BASE_URL")) or None
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     def analyze(self, prompt: str) -> str:
@@ -79,11 +92,14 @@ class LLMClient:
             return "[OpenAI 库未安装，请运行: pip install openai]"
 
         try:
-            client = OpenAI(api_key=self.api_key)
+            kwargs = {"api_key": self.api_key}
+            if self.base_url:
+                kwargs["base_url"] = self.base_url
+            client = OpenAI(**kwargs)
             resp = client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                timeout=30,
+                timeout=60,
             )
             return resp.choices[0].message.content
         except Exception as e:
@@ -111,7 +127,7 @@ class LLMClient:
             client = anthropic.Anthropic(api_key=self.api_key)
             resp = client.messages.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.content[0].text

@@ -1,13 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from datetime import date
 import calendar
 from backend.database import get_db
-from backend.models import Budget, BudgetCreate
+from backend.models import Budget, BudgetCreate, UserInfo
+from backend.auth import get_current_user
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
+
 @router.post("", response_model=Budget, status_code=201)
-def set_budget(body: BudgetCreate):
+def set_budget(body: BudgetCreate, _: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         db.execute(
             "DELETE FROM budgets WHERE category_id IS ? AND year=? AND month=?",
@@ -21,8 +23,19 @@ def set_budget(body: BudgetCreate):
         row = db.execute("SELECT * FROM budgets WHERE id=?", (cur.lastrowid,)).fetchone()
     return dict(row)
 
+
+@router.get("", response_model=list[Budget])
+def list_budgets(year: int, month: int, _: UserInfo = Depends(get_current_user)):
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT * FROM budgets WHERE year=? AND month=?",
+            (year, month)
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 @router.get("/current")
-def get_current_budget():
+def get_current_budget(_: UserInfo = Depends(get_current_user)):
     today = date.today()
     year, month = today.year, today.month
     month_str = f"{year}-{month:02d}"

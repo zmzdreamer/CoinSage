@@ -1,12 +1,20 @@
 from collections import defaultdict
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from datetime import date
 from backend.database import get_db
 from backend.llm.client import LLMClient, load_prompt
 from backend.routers.budgets import get_current_budget
+from backend.auth import get_current_user
+from backend.models import UserInfo
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
-llm = LLMClient()
+
+
+def _get_llm_config(db) -> dict:
+    row = db.execute("SELECT * FROM ai_settings WHERE id=1").fetchone()
+    if row:
+        return dict(row)
+    return {}
 
 
 def _load_category_map(db) -> dict:
@@ -37,14 +45,16 @@ def _fmt_category_summary(rows, category_map: dict) -> str:
 
 
 @router.get("/daily-summary")
-def daily_summary():
+def daily_summary(_: UserInfo = Depends(get_current_user)):
     today = date.today()
     with get_db() as db:
+        config = _get_llm_config(db)
         category_map = _load_category_map(db)
         rows = db.execute(
             "SELECT * FROM transactions WHERE date=?", (str(today),)
         ).fetchall()
 
+    llm = LLMClient(config=config)
     budget = get_current_budget()
     prompt = load_prompt("daily_summary").format(
         date=str(today),
@@ -56,16 +66,18 @@ def daily_summary():
 
 
 @router.post("/rebalance")
-def rebalance():
+def rebalance(_: UserInfo = Depends(get_current_user)):
     today = date.today()
     month_str = f"{today.year}-{today.month:02d}"
     with get_db() as db:
+        config = _get_llm_config(db)
         category_map = _load_category_map(db)
         rows = db.execute(
             "SELECT * FROM transactions WHERE strftime('%Y-%m', date)=? ORDER BY date DESC",
             (month_str,)
         ).fetchall()
 
+    llm = LLMClient(config=config)
     budget = get_current_budget()
     prompt = load_prompt("rebalance").format(
         total_budget=budget["total_budget"],
