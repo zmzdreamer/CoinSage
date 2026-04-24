@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
+import { useToast } from "../ToastContext"
 
 function StatRow({ label, value, valueColor, isLast }) {
   return (
@@ -16,16 +17,40 @@ function StatRow({ label, value, valueColor, isLast }) {
 }
 
 export default function Budget() {
+  const showToast = useToast()
   const [amount, setAmount] = useState("")
   const [saved, setSaved] = useState(false)
   const [budget, setBudget] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [catBudgets, setCatBudgets] = useState({})
+  const [catSaved, setCatSaved] = useState({})
 
   useEffect(() => {
     api.getCurrentBudget().then(b => {
       setBudget(b)
       if (b.total_budget > 0) setAmount(String(b.total_budget))
     })
+    const today = new Date()
+    const [yr, mo] = [today.getFullYear(), today.getMonth() + 1]
+    api.getCategories().then(setCategories)
+    api.getCategoryBudgets(yr, mo).then(budgets => {
+      const map = {}
+      budgets.filter(b => b.category_id !== null).forEach(b => {
+        map[b.category_id] = String(b.amount)
+      })
+      setCatBudgets(map)
+    })
   }, [])
+
+  async function saveCatBudget(catId) {
+    const val = Number(catBudgets[catId])
+    if (!val || val <= 0) return
+    const today = new Date()
+    await api.setBudget({ category_id: catId, amount: val, period: "monthly", year: today.getFullYear(), month: today.getMonth() + 1 })
+    setCatSaved(s => ({ ...s, [catId]: true }))
+    setTimeout(() => setCatSaved(s => ({ ...s, [catId]: false })), 2000)
+    showToast("分类预算已保存")
+  }
 
   async function handleSave() {
     if (!amount || Number(amount) <= 0) return
@@ -36,6 +61,7 @@ export default function Budget() {
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+    showToast("预算已保存")
     api.getCurrentBudget().then(setBudget)
   }
 
@@ -126,6 +152,65 @@ export default function Budget() {
             <StatRow label="剩余额度"   value={`¥${Number(budget.remaining).toFixed(2)}`}      valueColor={budget.remaining >= 0 ? "var(--c-green)" : "var(--c-red)"} />
             <StatRow label="每日建议"   value={`¥${Number(budget.daily_allowance).toFixed(2)}`} valueColor={budget.daily_allowance >= 0 ? "var(--c-blue)" : "var(--c-red)"} />
             <StatRow label="剩余天数"   value={`${budget.days_left} 天`} isLast />
+          </div>
+        )}
+        {/* 分类预算卡片 */}
+        {categories.length > 0 && (
+          <div className="card fade-up overflow-hidden" style={{ animationDelay: "120ms" }}>
+            <div style={{ padding: "20px 24px 12px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", color: "var(--c-text-3)", textTransform: "uppercase", marginBottom: "4px" }}>
+                分类预算（可选）
+              </p>
+            </div>
+            {categories.map((cat, i) => (
+              <div key={cat.id}>
+                <div className="sep" style={{ marginLeft: "20px" }} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", gap: "12px" }}>
+                  {/* 左：彩色圆点 + 分类名 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+                    <span style={{
+                      width: "10px", height: "10px", borderRadius: "50%",
+                      background: cat.color || "#6b7280", flexShrink: 0,
+                    }} />
+                    <span style={{ fontSize: "14px", color: "var(--c-text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {cat.name}
+                    </span>
+                  </div>
+                  {/* 右：输入框 + 设置按钮 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                      <span style={{ fontSize: "13px", color: "var(--c-text-3)" }}>¥</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={catBudgets[cat.id] || ""}
+                        placeholder="不限"
+                        onChange={e => setCatBudgets(s => ({ ...s, [cat.id]: e.target.value }))}
+                        onKeyDown={e => e.key === "Enter" && saveCatBudget(cat.id)}
+                        style={{
+                          width: "72px", background: "transparent", border: "none", outline: "none",
+                          fontSize: "14px", fontWeight: 500, color: "var(--c-text-1)",
+                          fontFamily: "var(--font)", fontVariantNumeric: "tabular-nums",
+                          textAlign: "left",
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => saveCatBudget(cat.id)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        fontSize: "12px", fontWeight: 600,
+                        color: catSaved[cat.id] ? "var(--c-green)" : "var(--c-blue)",
+                        fontFamily: "var(--font)", padding: "2px 4px",
+                        transition: "color 0.15s",
+                      }}
+                    >
+                      {catSaved[cat.id] ? "✓" : "确认"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

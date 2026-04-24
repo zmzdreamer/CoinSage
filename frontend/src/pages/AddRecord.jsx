@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { api } from "../api"
+import { useToast } from "../ToastContext"
 
 // editData: { id, amount, category_id, note } — 传入则为编辑模式
 export default function AddRecord({ onClose, onSaved, editData }) {
   const isEdit = !!editData
+  const showToast = useToast()
   const [categories, setCategories] = useState([])
   const [amount, setAmount] = useState(editData ? String(editData.amount) : "")
   const [categoryId, setCategoryId] = useState(editData?.category_id ?? null)
@@ -40,6 +42,7 @@ export default function AddRecord({ onClose, onSaved, editData }) {
       })
     }
     setLoading(false)
+    showToast(isEdit ? "记录已更新" : "记录已保存")
     onSaved()
   }
 

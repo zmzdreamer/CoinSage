@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { api } from "../api"
 import AddRecord from "./AddRecord"
+import { useToast } from "../ToastContext"
 
 /* ─── Helpers ─── */
 function fmt(n) { return n != null ? Number(n).toFixed(2) : "—" }
@@ -11,16 +12,20 @@ function progressColor(pct) {
   return "var(--c-red)"
 }
 
-/* ─── Category color mapping ─── */
-const CAT_PALETTE = {
-  餐饮: { accent: "#f97316", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.2)" },
-  交通: { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)",  border: "rgba(59,130,246,0.2)"  },
-  购物: { accent: "#ec4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.2)"  },
-  娱乐: { accent: "#8b5cf6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.2)"  },
-  医疗: { accent: "#ef4444", bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.2)"   },
-  其他: { accent: "#6b7280", bg: "rgba(107,114,128,0.08)", border: "rgba(107,114,128,0.2)" },
+/* ─── Category color helpers ─── */
+function hexToRgb(hex) {
+  const h = (hex || "#6b7280").replace("#", "")
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]
 }
-function palette(name) { return CAT_PALETTE[name] ?? CAT_PALETTE["其他"] }
+
+function paletteFromHex(hex) {
+  const [r, g, b] = hexToRgb(hex)
+  return {
+    accent: hex || "#6b7280",
+    bg:     `rgba(${r},${g},${b},0.08)`,
+    border: `rgba(${r},${g},${b},0.20)`,
+  }
+}
 
 /* ─── Icons ─── */
 function EditIcon() {
@@ -115,9 +120,11 @@ function TodayTotalCard({ total, count }) {
 }
 
 /* ─── 单个分类列 ─── */
-function CategoryColumn({ category, items, total, onEdit, onDelete, delay }) {
-  const p = palette(category.name)
+function CategoryColumn({ category, items, total, onEdit, onDelete, delay, monthSpent, budgetAmount }) {
+  const p = paletteFromHex(category.color)
   const isEmpty = items.length === 0
+  const budgetPct = budgetAmount > 0 ? monthSpent / budgetAmount : 0
+  const pctColor = budgetPct < 0.6 ? "var(--c-green)" : budgetPct < 0.85 ? "var(--c-orange)" : "var(--c-red)"
   // 记录正在等待二次确认的 id
   const [pendingDeleteId, setPendingDeleteId] = useState(null)
 
@@ -174,6 +181,21 @@ function CategoryColumn({ category, items, total, onEdit, onDelete, delay }) {
           {isEmpty ? "—" : `¥${total.toFixed(2)}`}
         </span>
       </div>
+
+      {/* 月度预算进度条 */}
+      {budgetAmount > 0 && (
+        <div style={{ padding: "6px 16px 8px", borderBottom: `0.5px solid ${p.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "10px", color: "var(--c-text-3)" }}>月度预算</span>
+            <span style={{ fontSize: "10px", color: pctColor, fontWeight: 600 }}>
+              ¥{monthSpent.toFixed(0)} / ¥{budgetAmount}
+            </span>
+          </div>
+          <div className="progress-track" style={{ height: "3px" }}>
+            <div className="progress-fill" style={{ width: `${Math.min(budgetPct * 100, 100)}%`, background: pctColor }} />
+          </div>
+        </div>
+      )}
 
       {/* 消费记录 */}
       <div style={{ flex: 1, padding: "8px 0" }}>
@@ -292,7 +314,7 @@ function CategoryColumn({ category, items, total, onEdit, onDelete, delay }) {
 }
 
 /* ─── 分类分栏区域 ─── */
-function CategoryGrid({ categories, transactions, onEdit, onDelete }) {
+function CategoryGrid({ categories, transactions, onEdit, onDelete, monthSpentByCategory, categoryBudgetMap }) {
   // 按分类分组
   const grouped = {}
   categories.forEach(c => { grouped[c.id] = { items: [], total: 0 } })
@@ -317,6 +339,8 @@ function CategoryGrid({ categories, transactions, onEdit, onDelete }) {
           onEdit={onEdit}
           onDelete={onDelete}
           delay={140 + i * 30}
+          monthSpent={monthSpentByCategory[cat.id] || 0}
+          budgetAmount={categoryBudgetMap[cat.id] || 0}
         />
       ))}
     </div>
@@ -325,19 +349,39 @@ function CategoryGrid({ categories, transactions, onEdit, onDelete }) {
 
 /* ─── Page ─── */
 export default function Home({ onAddClick }) {
+  const showToast = useToast()
   const [budget, setBudget] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [editingTx, setEditingTx] = useState(null)
+  const [monthSpentByCategory, setMonthSpentByCategory] = useState({})
+  const [categoryBudgetMap, setCategoryBudgetMap] = useState({})
 
-  function loadData() {
-    api.getCurrentBudget().then(setBudget)
-    api.getTodayTransactions().then(setTransactions)
+  async function loadData() {
+    const today = new Date()
+    const month = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`
+    const [budget, txToday, txMonth, catBudgets] = await Promise.all([
+      api.getCurrentBudget(),
+      api.getTodayTransactions(),
+      api.getMonthTransactions(month),
+      api.getCategoryBudgets(today.getFullYear(), today.getMonth()+1),
+    ])
+    setBudget(budget)
+    setTransactions(txToday)
+
+    const spent = {}
+    txMonth.forEach(t => { spent[t.category_id] = (spent[t.category_id] || 0) + t.amount })
+    setMonthSpentByCategory(spent)
+
+    const bmap = {}
+    catBudgets.filter(b => b.category_id !== null).forEach(b => { bmap[b.category_id] = b.amount })
+    setCategoryBudgetMap(bmap)
   }
 
   async function handleDelete(id) {
     await api.deleteTransaction(id)
     loadData()
+    showToast("记录已删除")
   }
 
   useEffect(() => {
@@ -386,6 +430,8 @@ export default function Home({ onAddClick }) {
         transactions={transactions}
         onEdit={setEditingTx}
         onDelete={handleDelete}
+        monthSpentByCategory={monthSpentByCategory}
+        categoryBudgetMap={categoryBudgetMap}
       />
 
       {/* 编辑弹窗 */}
