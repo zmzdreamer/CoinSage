@@ -213,10 +213,9 @@ function CategoryColumn({ category, items, total, onEdit, onDelete, delay, month
             const time = new Date(t.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
             return (
               <div key={t.id}>
-                <div style={{
+                <div className="tx-row" style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
                   padding: "8px 14px",
                   gap: "8px",
                 }}>
@@ -242,51 +241,53 @@ function CategoryColumn({ category, items, total, onEdit, onDelete, delay, month
                   }}>
                     −¥{Number(t.amount).toFixed(2)}
                   </span>
-                  {/* 编辑 */}
-                  <button
-                    onClick={() => onEdit(t)}
-                    title="编辑"
-                    aria-label={`编辑 ${t.note || "支出"}`}
-                    style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      padding: "4px", borderRadius: "6px",
-                      color: "var(--c-text-3)", display: "flex", alignItems: "center",
-                      flexShrink: 0, transition: "background 0.15s, color 0.15s",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = p.bg; e.currentTarget.style.color = p.accent }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--c-text-3)" }}
-                  >
-                    <EditIcon />
-                  </button>
+                  <div className="row-actions" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    {/* 编辑 */}
+                    <button
+                      onClick={() => onEdit(t)}
+                      title="编辑"
+                      aria-label={`编辑 ${t.note || "支出"}`}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: "4px", borderRadius: "6px",
+                        color: "var(--c-text-3)", display: "flex", alignItems: "center",
+                        flexShrink: 0, transition: "background 0.15s, color 0.15s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = p.bg; e.currentTarget.style.color = p.accent }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--c-text-3)" }}
+                    >
+                      <EditIcon />
+                    </button>
 
-                  {/* 删除（二次确认） */}
-                  <button
-                    onClick={() => handleDeleteClick(t.id)}
-                    title={pendingDeleteId === t.id ? "再次点击确认删除" : "删除"}
-                    aria-label={`删除 ${t.note || "支出"}`}
-                    style={{
-                      background: pendingDeleteId === t.id ? "rgba(255,59,48,0.1)" : "none",
-                      border: "none", cursor: "pointer",
-                      padding: "4px", borderRadius: "6px",
-                      color: pendingDeleteId === t.id ? "var(--c-red)" : "var(--c-text-3)",
-                      display: "flex", alignItems: "center",
-                      flexShrink: 0, transition: "background 0.15s, color 0.15s",
-                    }}
-                    onMouseEnter={e => {
-                      if (pendingDeleteId !== t.id) {
-                        e.currentTarget.style.background = "rgba(255,59,48,0.08)"
-                        e.currentTarget.style.color = "var(--c-red)"
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (pendingDeleteId !== t.id) {
-                        e.currentTarget.style.background = "none"
-                        e.currentTarget.style.color = "var(--c-text-3)"
-                      }
-                    }}
-                  >
-                    <TrashIcon />
-                  </button>
+                    {/* 删除（二次确认） */}
+                    <button
+                      onClick={() => handleDeleteClick(t.id)}
+                      title={pendingDeleteId === t.id ? "再次点击确认删除" : "删除"}
+                      aria-label={`删除 ${t.note || "支出"}`}
+                      style={{
+                        background: pendingDeleteId === t.id ? "rgba(255,59,48,0.1)" : "none",
+                        border: "none", cursor: "pointer",
+                        padding: "4px", borderRadius: "6px",
+                        color: pendingDeleteId === t.id ? "var(--c-red)" : "var(--c-text-3)",
+                        display: "flex", alignItems: "center",
+                        flexShrink: 0, transition: "background 0.15s, color 0.15s",
+                      }}
+                      onMouseEnter={e => {
+                        if (pendingDeleteId !== t.id) {
+                          e.currentTarget.style.background = "rgba(255,59,48,0.08)"
+                          e.currentTarget.style.color = "var(--c-red)"
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (pendingDeleteId !== t.id) {
+                          e.currentTarget.style.background = "none"
+                          e.currentTarget.style.color = "var(--c-text-3)"
+                        }
+                      }}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
                 </div>
                 {i < items.length - 1 && (
                   <div style={{ height: "0.5px", background: "var(--c-sep)", margin: "0 14px" }} />
