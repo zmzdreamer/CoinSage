@@ -454,14 +454,33 @@ export default function Home({ onAddClick }) {
       </div>
 
       {/* 分类列 */}
-      <CategoryGrid
-        categories={categories}
-        transactions={transactions}
-        onEdit={setEditingTx}
-        onDelete={handleDelete}
-        monthSpentByCategory={monthSpentByCategory}
-        categoryBudgetMap={categoryBudgetMap}
-      />
+      {categories.length > 0 && transactions.length === 0 ? (
+        <div className="card fade-up" style={{ textAlign: "center", padding: "48px 24px", animationDelay: "140ms" }}>
+          <p style={{ fontSize: "36px", marginBottom: "12px" }}>📋</p>
+          <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--c-text-1)", marginBottom: "6px" }}>
+            今天还没有支出
+          </p>
+          <p style={{ fontSize: "13px", color: "var(--c-text-3)", marginBottom: "20px" }}>
+            点击右下角 + 记录第一笔，或按 <kbd style={{
+              background: "var(--c-fill)", padding: "1px 6px", borderRadius: "4px",
+              fontSize: "12px", fontFamily: "var(--font)",
+            }}>N</kbd> 快速记账
+          </p>
+          <button className="btn-primary" onClick={onAddClick}
+            style={{ maxWidth: "160px", margin: "0 auto" }}>
+            ＋ 记一笔
+          </button>
+        </div>
+      ) : (
+        <CategoryGrid
+          categories={categories}
+          transactions={transactions}
+          onEdit={setEditingTx}
+          onDelete={handleDelete}
+          monthSpentByCategory={monthSpentByCategory}
+          categoryBudgetMap={categoryBudgetMap}
+        />
+      )}
 
       {/* 编辑弹窗 */}
       {editingTx && (
