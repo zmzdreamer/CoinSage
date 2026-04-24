@@ -7,6 +7,7 @@ import Analysis from "./pages/Analysis"
 import Budget from "./pages/Budget"
 import Categories from "./pages/Categories"
 import AISettings from "./pages/AISettings"
+import Search from "./pages/Search"
 import Login from "./pages/Login"
 import "./index.css"
 
@@ -111,6 +112,7 @@ export default function App() {
   const [showAdd, setShowAdd]     = useState(false)
   const [showCategories, setShowCategories] = useState(false)
   const [showAISettings, setShowAISettings] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   if (loading) return <Spinner />
@@ -160,6 +162,20 @@ export default function App() {
           <span style={{ fontSize: "17px", fontWeight: 700, color: "var(--c-text-1)", letterSpacing: "-0.3px" }}>
             CoinSage
           </span>
+          <button
+            onClick={() => setShowSearch(true)}
+            aria-label="搜索"
+            style={{
+              background: "var(--c-fill)", border: "none", borderRadius: "8px",
+              padding: "6px 10px", cursor: "pointer",
+              display: "flex", alignItems: "center",
+              color: "var(--c-text-2)", marginLeft: "4px",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </button>
         </div>
 
         {/* Right: controls */}
@@ -250,6 +266,7 @@ export default function App() {
       {showAdd && <AddRecord onClose={() => setShowAdd(false)} onSaved={handleSaved} />}
       {showCategories && <Categories onClose={() => setShowCategories(false)} />}
       {showAISettings && <AISettings onClose={() => setShowAISettings(false)} />}
+      {showSearch && <Search onClose={() => setShowSearch(false)} />}
     </>
   )
 }
