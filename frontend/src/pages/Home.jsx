@@ -379,6 +379,7 @@ export default function Home({ onAddClick }) {
   const [monthSpentByCategory, setMonthSpentByCategory] = useState({})
   const [categoryBudgetMap, setCategoryBudgetMap] = useState({})
   const [loadingData, setLoadingData] = useState(true)
+  const [recurringDue, setRecurringDue] = useState([])
 
   async function loadData() {
     setLoadingData(true)
@@ -406,6 +407,13 @@ export default function Home({ onAddClick }) {
     }
   }
 
+  async function handleConfirmRecurring(id, name) {
+    await api.confirmRecurring(id)
+    setRecurringDue(prev => prev.filter(r => r.id !== id))
+    loadData()
+    showToast(`「${name}」已入账`)
+  }
+
   async function handleDelete(id) {
     await api.deleteTransaction(id)
     loadData()
@@ -415,6 +423,9 @@ export default function Home({ onAddClick }) {
   useEffect(() => {
     loadData()
     api.getCategories().then(setCategories)
+    api.getRecurring().then(list => {
+      setRecurringDue(list.filter(r => r.due_this_month && !r.confirmed_this_month))
+    })
   }, [])
 
   const todayTotal = transactions.reduce((s, t) => s + t.amount, 0)
@@ -438,6 +449,41 @@ export default function Home({ onAddClick }) {
           今日概览
         </h1>
       </div>
+
+      {/* 周期账单待确认横幅 */}
+      {recurringDue.length > 0 && (
+        <div style={{ marginBottom: "16px" }}>
+          {recurringDue.map(r => (
+            <div key={r.id} className="fade-up" style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              background: "rgba(59,130,246,0.08)",
+              border: "1px solid rgba(59,130,246,0.20)",
+              borderRadius: "var(--r-md)", padding: "12px 16px", marginBottom: "8px",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-blue)" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)" }}>{r.name}</p>
+                <p style={{ fontSize: "11px", color: "var(--c-text-3)" }}>
+                  周期账单 · 每月 {r.day_of_month} 日 · ¥{r.amount}
+                </p>
+              </div>
+              <button
+                onClick={() => handleConfirmRecurring(r.id, r.name)}
+                style={{
+                  background: "var(--c-blue)", color: "#fff", border: "none",
+                  borderRadius: "8px", padding: "6px 14px", cursor: "pointer",
+                  fontSize: "12px", fontWeight: 600, fontFamily: "var(--font)",
+                  flexShrink: 0,
+                }}>
+                确认入账
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 顶部三张概览卡 */}
       <div className="bento" style={{ marginBottom: "20px" }}>
