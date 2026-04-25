@@ -6,6 +6,7 @@ from backend.database import get_db, init_db
 from backend.routers import categories, transactions, budgets, ai
 from backend.routers import auth as auth_router
 from backend.routers import settings as settings_router
+from backend.routers import recurring as recurring_router
 
 load_dotenv()
 
@@ -31,6 +32,7 @@ app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
 app.include_router(ai.router)
+app.include_router(recurring_router.router)
 
 
 @app.get("/health")

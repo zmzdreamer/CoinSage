@@ -56,3 +56,15 @@ class AISettingUpdate(BaseModel):
 
 class AISetting(AISettingUpdate):
     updated_at: str
+
+class RecurringCreate(BaseModel):
+    name: str
+    amount: float
+    category_id: Optional[int] = None
+    day_of_month: int
+    note: str = ""
+
+class Recurring(RecurringCreate):
+    id: int
+    active: bool
+    created_at: datetime
