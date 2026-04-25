@@ -121,6 +121,24 @@ export const api = {
     return fetchJSON(`${BASE}/budgets?year=${year}&month=${month}`)
   },
 
+  /* ── Recurring ── */
+  getRecurring() {
+    return fetchJSON(`${BASE}/recurring`)
+  },
+  createRecurring(data) {
+    return fetchJSON(`${BASE}/recurring`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+  },
+  deleteRecurring(id) {
+    return fetchJSON(`${BASE}/recurring/${id}`, { method: "DELETE" })
+  },
+  confirmRecurring(id) {
+    return fetchJSON(`${BASE}/recurring/${id}/confirm`, { method: "POST" })
+  },
+
   /* ── AI Analysis ── */
   getDailySummary() {
     return fetchJSON(`${BASE}/ai/daily-summary`)
