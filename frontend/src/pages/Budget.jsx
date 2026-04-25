@@ -24,6 +24,9 @@ export default function Budget() {
   const [categories, setCategories] = useState([])
   const [catBudgets, setCatBudgets] = useState({})
   const [catSaved, setCatSaved] = useState({})
+  const [recurring, setRecurring] = useState([])
+  const [showAddRecurring, setShowAddRecurring] = useState(false)
+  const [newR, setNewR] = useState({ name: "", amount: "", category_id: null, day_of_month: 1, note: "" })
 
   useEffect(() => {
     api.getCurrentBudget().then(b => {
@@ -33,6 +36,7 @@ export default function Budget() {
     const today = new Date()
     const [yr, mo] = [today.getFullYear(), today.getMonth() + 1]
     api.getCategories().then(setCategories)
+    api.getRecurring().then(setRecurring)
     api.getCategoryBudgets(yr, mo).then(budgets => {
       const map = {}
       budgets.filter(b => b.category_id !== null).forEach(b => {
@@ -50,6 +54,27 @@ export default function Budget() {
     setCatSaved(s => ({ ...s, [catId]: true }))
     setTimeout(() => setCatSaved(s => ({ ...s, [catId]: false })), 2000)
     showToast("分类预算已保存")
+  }
+
+  async function saveRecurring() {
+    if (!newR.name.trim() || !newR.amount || Number(newR.amount) <= 0) return
+    await api.createRecurring({
+      name: newR.name.trim(),
+      amount: Number(newR.amount),
+      category_id: newR.category_id || null,
+      day_of_month: Number(newR.day_of_month),
+      note: newR.note,
+    })
+    api.getRecurring().then(setRecurring)
+    setShowAddRecurring(false)
+    setNewR({ name: "", amount: "", category_id: null, day_of_month: 1, note: "" })
+    showToast("周期账单已添加")
+  }
+
+  async function removeRecurring(id) {
+    await api.deleteRecurring(id)
+    setRecurring(prev => prev.filter(r => r.id !== id))
+    showToast("周期账单已删除")
   }
 
   async function handleSave() {
@@ -213,6 +238,94 @@ export default function Budget() {
             ))}
           </div>
         )}
+        {/* 周期账单卡片 */}
+        <div className="card fade-up overflow-hidden" style={{ animationDelay: "180ms" }}>
+          <div style={{ padding: "20px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", color: "var(--c-text-3)", textTransform: "uppercase" }}>
+              周期账单
+            </p>
+            <button onClick={() => setShowAddRecurring(v => !v)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                       fontSize: "12px", fontWeight: 600, color: "var(--c-blue)", fontFamily: "var(--font)" }}>
+              {showAddRecurring ? "取消" : "+ 添加"}
+            </button>
+          </div>
+
+          {showAddRecurring && (
+            <div style={{ padding: "0 20px 16px" }}>
+              <div className="sep" style={{ marginBottom: "12px" }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                <div>
+                  <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>名称</p>
+                  <input value={newR.name} onChange={e => setNewR(r => ({...r, name: e.target.value}))}
+                    placeholder="房租" style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                    borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                    fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>金额（¥）</p>
+                  <input type="number" inputMode="decimal" value={newR.amount}
+                    onChange={e => setNewR(r => ({...r, amount: e.target.value}))}
+                    placeholder="0.00" style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                    borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                    fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>每月几号</p>
+                  <input type="number" min="1" max="28" value={newR.day_of_month}
+                    onChange={e => setNewR(r => ({...r, day_of_month: e.target.value}))}
+                    style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                    borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                    fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>分类</p>
+                  <select value={newR.category_id || ""} onChange={e => setNewR(r => ({...r, category_id: e.target.value || null}))}
+                    style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                    borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                    fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }}>
+                    <option value="">不指定</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button onClick={saveRecurring}
+                disabled={!newR.name.trim() || !newR.amount}
+                style={{ width: "100%", padding: "10px", background: "var(--c-blue)", color: "#fff",
+                         border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 600,
+                         fontFamily: "var(--font)", cursor: "pointer" }}>
+                保存周期账单
+              </button>
+            </div>
+          )}
+
+          {recurring.length === 0 && !showAddRecurring ? (
+            <p style={{ padding: "16px 24px", fontSize: "13px", color: "var(--c-text-3)" }}>
+              暂无周期账单，点击「+ 添加」设置房租、订阅等定期支出
+            </p>
+          ) : (
+            recurring.map(r => (
+              <div key={r.id}>
+                <div className="sep" style={{ marginLeft: "20px" }} />
+                <div style={{ display: "flex", alignItems: "center", padding: "12px 20px", gap: "10px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0,
+                                background: r.category_color || "#6b7280" }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)" }}>{r.name}</p>
+                    <p style={{ fontSize: "11px", color: "var(--c-text-3)" }}>
+                      每月 {r.day_of_month} 日 · {r.category_name || "不分类"}
+                    </p>
+                  </div>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)",
+                                 fontVariantNumeric: "tabular-nums" }}>¥{r.amount}</span>
+                  <button onClick={() => removeRecurring(r.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer",
+                             color: "var(--c-text-3)", fontSize: "16px", padding: "4px" }}>✕</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <style>{`
