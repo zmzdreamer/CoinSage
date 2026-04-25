@@ -1,8 +1,13 @@
 const BASE = "/api/categories"
 
-async function req(url, options) {
+function authHeaders(extra) {
+  const token = localStorage.getItem("token")
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra }
+}
+
+async function req(url, options = {}) {
   try {
-    const r = await fetch(url, options)
+    const r = await fetch(url, { ...options, headers: authHeaders(options.headers) })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     if (r.status === 204) return null
     return r.json()

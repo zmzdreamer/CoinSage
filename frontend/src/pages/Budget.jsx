@@ -26,7 +26,7 @@ export default function Budget() {
   const [catSaved, setCatSaved] = useState({})
   const [recurring, setRecurring] = useState([])
   const [showAddRecurring, setShowAddRecurring] = useState(false)
-  const [newR, setNewR] = useState({ name: "", amount: "", category_id: null, day_of_month: 1, note: "" })
+  const [newR, setNewR] = useState({ name: "", amount: "", category_id: null, period: "monthly", day_of_month: 1, month_of_year: 1, note: "" })
 
   useEffect(() => {
     api.getCurrentBudget().then(b => {
@@ -58,16 +58,20 @@ export default function Budget() {
 
   async function saveRecurring() {
     if (!newR.name.trim() || !newR.amount || Number(newR.amount) <= 0) return
+    const dom = Number(newR.day_of_month)
+    if (newR.period !== "daily" && (!dom || dom < 1 || dom > 28)) return
     await api.createRecurring({
       name: newR.name.trim(),
       amount: Number(newR.amount),
       category_id: newR.category_id || null,
-      day_of_month: Number(newR.day_of_month),
+      period: newR.period,
+      day_of_month: newR.period === "daily" ? 1 : dom,
+      month_of_year: newR.period === "yearly" ? Number(newR.month_of_year) : null,
       note: newR.note,
     })
     api.getRecurring().then(setRecurring)
     setShowAddRecurring(false)
-    setNewR({ name: "", amount: "", category_id: null, day_of_month: 1, note: "" })
+    setNewR({ name: "", amount: "", category_id: null, period: "monthly", day_of_month: 1, month_of_year: 1, note: "" })
     showToast("周期账单已添加")
   }
 
@@ -254,6 +258,21 @@ export default function Budget() {
           {showAddRecurring && (
             <div style={{ padding: "0 20px 16px" }}>
               <div className="sep" style={{ marginBottom: "12px" }} />
+
+              {/* 周期选择 */}
+              <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+                {[["daily","每日"],["monthly","每月"],["yearly","每年"]].map(([val, label]) => (
+                  <button key={val} onClick={() => setNewR(r => ({...r, period: val}))}
+                    style={{ flex: 1, padding: "6px 4px", borderRadius: "8px", cursor: "pointer",
+                             fontFamily: "var(--font)", fontSize: "12px", fontWeight: 600,
+                             border: `1.5px solid ${newR.period === val ? "var(--c-blue)" : "var(--c-sep)"}`,
+                             background: newR.period === val ? "rgba(0,113,227,0.08)" : "var(--c-fill-2)",
+                             color: newR.period === val ? "var(--c-blue)" : "var(--c-text-2)" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                 <div>
                   <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>名称</p>
@@ -270,14 +289,29 @@ export default function Budget() {
                     borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
                     fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
                 </div>
-                <div>
-                  <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>每月几号</p>
-                  <input type="number" min="1" max="28" value={newR.day_of_month}
-                    onChange={e => setNewR(r => ({...r, day_of_month: e.target.value}))}
-                    style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
-                    borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
-                    fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
-                </div>
+
+                {newR.period === "yearly" && (
+                  <div>
+                    <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>几月</p>
+                    <input type="number" min="1" max="12" value={newR.month_of_year}
+                      onChange={e => setNewR(r => ({...r, month_of_year: e.target.value}))}
+                      style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                      borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                      fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                )}
+
+                {newR.period !== "daily" && (
+                  <div>
+                    <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>几号</p>
+                    <input type="number" min="1" max="28" value={newR.day_of_month}
+                      onChange={e => setNewR(r => ({...r, day_of_month: e.target.value}))}
+                      style={{ width: "100%", background: "var(--c-fill-2)", border: "1px solid var(--c-sep)",
+                      borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--c-text-1)",
+                      fontFamily: "var(--font)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                )}
+
                 <div>
                   <p style={{ fontSize: "11px", color: "var(--c-text-3)", marginBottom: "4px", fontWeight: 600 }}>分类</p>
                   <select value={newR.category_id || ""} onChange={e => setNewR(r => ({...r, category_id: e.target.value || null}))}
@@ -289,6 +323,7 @@ export default function Budget() {
                   </select>
                 </div>
               </div>
+
               <button onClick={saveRecurring}
                 disabled={!newR.name.trim() || !newR.amount}
                 style={{ width: "100%", padding: "10px", background: "var(--c-blue)", color: "#fff",
@@ -313,7 +348,9 @@ export default function Budget() {
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)" }}>{r.name}</p>
                     <p style={{ fontSize: "11px", color: "var(--c-text-3)" }}>
-                      每月 {r.day_of_month} 日 · {r.category_name || "不分类"}
+                      {r.period === "daily" ? "每日" :
+                       r.period === "yearly" ? `每年 ${r.month_of_year} 月 ${r.day_of_month} 日` :
+                       `每月 ${r.day_of_month} 日`} · {r.category_name || "不分类"}
                     </p>
                   </div>
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)",

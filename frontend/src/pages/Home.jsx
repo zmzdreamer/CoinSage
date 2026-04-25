@@ -380,6 +380,7 @@ export default function Home({ onAddClick }) {
   const [categoryBudgetMap, setCategoryBudgetMap] = useState({})
   const [loadingData, setLoadingData] = useState(true)
   const [recurringDue, setRecurringDue] = useState([])
+  const [confirmingId, setConfirmingId] = useState(null)
 
   async function loadData() {
     setLoadingData(true)
@@ -408,10 +409,18 @@ export default function Home({ onAddClick }) {
   }
 
   async function handleConfirmRecurring(id, name) {
-    await api.confirmRecurring(id)
-    setRecurringDue(prev => prev.filter(r => r.id !== id))
-    loadData()
-    showToast(`「${name}」已入账`)
+    if (confirmingId === id) return
+    setConfirmingId(id)
+    try {
+      await api.confirmRecurring(id)
+      setRecurringDue(prev => prev.filter(r => r.id !== id))
+      loadData()
+      showToast(`「${name}」已入账`)
+    } catch {
+      showToast("入账失败，请重试", "error")
+    } finally {
+      setConfirmingId(null)
+    }
   }
 
   async function handleDelete(id) {
@@ -424,7 +433,7 @@ export default function Home({ onAddClick }) {
     loadData()
     api.getCategories().then(setCategories)
     api.getRecurring().then(list => {
-      setRecurringDue(list.filter(r => r.due_this_month && !r.confirmed_this_month))
+      setRecurringDue(list.filter(r => r.due_this_period && !r.confirmed_this_period))
     })
   }, [])
 
@@ -467,18 +476,23 @@ export default function Home({ onAddClick }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--c-text-1)" }}>{r.name}</p>
                 <p style={{ fontSize: "11px", color: "var(--c-text-3)" }}>
-                  周期账单 · 每月 {r.day_of_month} 日 · ¥{r.amount}
+                  {r.period === "daily" ? "每日" :
+                   r.period === "yearly" ? `每年 ${r.month_of_year} 月 ${r.day_of_month} 日` :
+                   `每月 ${r.day_of_month} 日`} · ¥{r.amount}
                 </p>
               </div>
               <button
                 onClick={() => handleConfirmRecurring(r.id, r.name)}
+                disabled={confirmingId === r.id}
                 style={{
-                  background: "var(--c-blue)", color: "#fff", border: "none",
-                  borderRadius: "8px", padding: "6px 14px", cursor: "pointer",
+                  background: confirmingId === r.id ? "var(--c-text-3)" : "var(--c-blue)",
+                  color: "#fff", border: "none",
+                  borderRadius: "8px", padding: "6px 14px",
+                  cursor: confirmingId === r.id ? "default" : "pointer",
                   fontSize: "12px", fontWeight: 600, fontFamily: "var(--font)",
-                  flexShrink: 0,
+                  flexShrink: 0, transition: "background 0.15s",
                 }}>
-                确认入账
+                {confirmingId === r.id ? "入账中…" : "确认入账"}
               </button>
             </div>
           ))}

@@ -11,7 +11,7 @@ def get_ai_settings(_: UserInfo = Depends(get_admin_user)):
     with get_db() as db:
         row = db.execute("SELECT * FROM ai_settings WHERE id=1").fetchone()
     if row is None:
-        return AISetting(provider="openai", model="gpt-4o-mini", api_key="",
+        return AISetting(provider="openai", model="", api_key="",
                          base_url=None, enabled=False, updated_at="")
     return AISetting(**dict(row))
 

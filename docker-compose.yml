@@ -9,10 +9,10 @@ services:
       - ./data:/app/data
     environment:
       - DB_PATH=/app/data/coinsage.db
-      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
-      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - ENABLE_AI=${ENABLE_AI:-false}
+      - JWT_SECRET=${JWT_SECRET:-coinsage-dev-secret-change-in-prod}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     restart: unless-stopped
 
   frontend:
@@ -22,6 +22,3 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
-volumes:
-  data:

@@ -19,7 +19,7 @@ def login(body: UserLogin):
             detail="用户名或密码错误",
         )
     user = UserInfo(id=row["id"], username=row["username"], is_admin=bool(row["is_admin"]))
-    token = create_access_token({"sub": user.id})
+    token = create_access_token({"sub": str(user.id)})
     return Token(access_token=token, user=user)
 
 

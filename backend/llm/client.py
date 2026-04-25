@@ -47,7 +47,7 @@ class LLMClient:
         cfg = config or {}
         self.enabled  = bool(cfg.get("enabled",  os.getenv("ENABLE_AI", "false").lower() == "true"))
         self.provider = cfg.get("provider",  os.getenv("LLM_PROVIDER", "openai"))
-        self.model    = cfg.get("model",     os.getenv("LLM_MODEL", "gpt-4o-mini"))
+        self.model    = cfg.get("model",     os.getenv("LLM_MODEL", ""))
         self.api_key  = cfg.get("api_key",   os.getenv("LLM_API_KEY", ""))
         self.base_url = cfg.get("base_url",  os.getenv("LLM_BASE_URL")) or None
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -124,7 +124,10 @@ class LLMClient:
             return "[Anthropic 库未安装，请运行: pip install anthropic]"
 
         try:
-            client = anthropic.Anthropic(api_key=self.api_key)
+            kwargs = {"api_key": self.api_key}
+            if self.base_url:
+                kwargs["base_url"] = self.base_url
+            client = anthropic.Anthropic(**kwargs)
             resp = client.messages.create(
                 model=self.model,
                 max_tokens=4096,

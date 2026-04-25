@@ -1,9 +1,9 @@
 import os
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from backend.database import get_db
 from backend.models import UserInfo
 
@@ -11,16 +11,12 @@ SECRET_KEY = os.getenv("JWT_SECRET", "coinsage-dev-secret-change-in-prod")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
-_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_ctx.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode() if isinstance(hashed, str) else hashed)
 
-
-def hash_password(password: str) -> str:
-    return _pwd_ctx.hash(password)
 
 
 def create_access_token(data: dict) -> str:
@@ -37,7 +33,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        sub = payload.get("sub")
+        user_id: int = int(sub) if sub is not None else None
         if user_id is None:
             raise credentials_exc
     except JWTError:

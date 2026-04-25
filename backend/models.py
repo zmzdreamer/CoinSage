@@ -61,7 +61,9 @@ class RecurringCreate(BaseModel):
     name: str
     amount: float
     category_id: Optional[int] = None
-    day_of_month: int
+    period: str = "monthly"
+    day_of_month: int = 1
+    month_of_year: Optional[int] = None
     note: str = ""
 
 class Recurring(RecurringCreate):

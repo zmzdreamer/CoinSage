@@ -1,9 +1,7 @@
 import sqlite3
 import os
+import bcrypt
 from contextlib import contextmanager
-from passlib.context import CryptContext
-
-_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 DB_PATH = os.getenv("DB_PATH", "coinsage.db")
 
@@ -85,21 +83,32 @@ def init_db(conn: sqlite3.Connection):
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS recurring_templates (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            name         TEXT    NOT NULL,
-            amount       REAL    NOT NULL CHECK(amount > 0),
-            category_id  INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-            day_of_month INTEGER NOT NULL CHECK(day_of_month >= 1 AND day_of_month <= 28),
-            note         TEXT    NOT NULL DEFAULT '',
-            active       INTEGER NOT NULL DEFAULT 1,
-            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            name          TEXT    NOT NULL,
+            amount        REAL    NOT NULL CHECK(amount > 0),
+            category_id   INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+            period        TEXT    NOT NULL DEFAULT 'monthly' CHECK(period IN ('daily','monthly','yearly')),
+            day_of_month  INTEGER NOT NULL DEFAULT 1 CHECK(day_of_month >= 1 AND day_of_month <= 28),
+            month_of_year INTEGER CHECK(month_of_year IS NULL OR (month_of_year >= 1 AND month_of_year <= 12)),
+            note          TEXT    NOT NULL DEFAULT '',
+            active        INTEGER NOT NULL DEFAULT 1,
+            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # 存量数据库迁移
+    for col, ddl in [
+        ("period",        "TEXT NOT NULL DEFAULT 'monthly'"),
+        ("month_of_year", "INTEGER"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE recurring_templates ADD COLUMN {col} {ddl}")
+        except Exception:
+            pass
 
     # Seed default admin account
     admin_username = os.getenv("ADMIN_USERNAME", "admin")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-    admin_hash = _pwd_ctx.hash(admin_password)
+    admin_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
     conn.execute(
         "INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
         (admin_username, admin_hash)

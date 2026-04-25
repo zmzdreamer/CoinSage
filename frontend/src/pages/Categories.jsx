@@ -175,7 +175,6 @@ export default function Categories({ onClose }) {
             cats.map((cat, i) => {
               const isEdit = editId === cat.id
               const isPendingDelete = deleteConfirm === cat.id
-              const isDefault = cat.id <= 6
 
               return (
                 <div key={cat.id}>
@@ -236,22 +235,19 @@ export default function Categories({ onClose }) {
                             fontFamily: "var(--font)",
                           }}
                         >编辑</button>
-                        {/* 删除按钮：仅非默认分类显示 */}
-                        {!isDefault && (
-                          <button
-                            onClick={() => handleDeleteClick(cat.id)}
-                            style={{
-                              background: isPendingDelete ? "var(--c-red)" : "var(--c-fill)",
-                              border: "none", borderRadius: "8px",
-                              padding: "5px 10px", cursor: "pointer",
-                              fontSize: "12px",
-                              color: isPendingDelete ? "white" : "var(--c-text-2)",
-                              fontFamily: "var(--font)",
-                              transition: "background 0.2s, color 0.2s",
-                              whiteSpace: "nowrap",
-                            }}
-                          >{isPendingDelete ? "再点确认" : "删除"}</button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteClick(cat.id)}
+                          style={{
+                            background: isPendingDelete ? "var(--c-red)" : "var(--c-fill)",
+                            border: "none", borderRadius: "8px",
+                            padding: "5px 10px", cursor: "pointer",
+                            fontSize: "12px",
+                            color: isPendingDelete ? "white" : "var(--c-text-2)",
+                            fontFamily: "var(--font)",
+                            transition: "background 0.2s, color 0.2s",
+                            whiteSpace: "nowrap",
+                          }}
+                        >{isPendingDelete ? "再点确认" : "删除"}</button>
                       </div>
                     </div>
                   )}
