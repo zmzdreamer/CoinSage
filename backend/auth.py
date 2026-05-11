@@ -11,7 +11,7 @@ def _get_secret_key() -> str:
         row = db.execute("SELECT value FROM app_config WHERE key='jwt_secret'").fetchone()
         if row:
             return row["value"]
-    return "fallback-not-for-production"
+    raise RuntimeError("jwt_secret not found in app_config — has init_db() been called?")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
