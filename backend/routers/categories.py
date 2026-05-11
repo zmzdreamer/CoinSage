@@ -19,21 +19,23 @@ class CategoryUpdate(BaseModel):
 
 
 @router.get("", response_model=list[Category])
-def list_categories(_: UserInfo = Depends(get_current_user)):
+def list_categories(user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        rows = db.execute("SELECT * FROM categories ORDER BY id").fetchall()
+        rows = db.execute("SELECT * FROM categories WHERE user_id=? ORDER BY id", (user.id,)).fetchall()
     return [dict(row) for row in rows]
 
 
 @router.post("", response_model=Category, status_code=201)
-def create_category(body: CategoryCreate, _: UserInfo = Depends(get_current_user)):
+def create_category(body: CategoryCreate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        existing = db.execute("SELECT id FROM categories WHERE name=?", (body.name,)).fetchone()
+        existing = db.execute(
+            "SELECT id FROM categories WHERE name=? AND user_id=?", (body.name, user.id)
+        ).fetchone()
         if existing:
             raise HTTPException(status_code=409, detail="分类名已存在")
         cur = db.execute(
-            "INSERT INTO categories (name, color, icon) VALUES (?,?,?)",
-            (body.name, body.color, body.icon)
+            "INSERT INTO categories (user_id, name, color, icon) VALUES (?,?,?,?)",
+            (user.id, body.name, body.color, body.icon)
         )
         db.commit()
         row = db.execute("SELECT * FROM categories WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -41,25 +43,32 @@ def create_category(body: CategoryCreate, _: UserInfo = Depends(get_current_user
 
 
 @router.patch("/{cat_id}", response_model=Category)
-def update_category(cat_id: int, body: CategoryUpdate, _: UserInfo = Depends(get_current_user)):
+def update_category(cat_id: int, body: CategoryUpdate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        row = db.execute("SELECT * FROM categories WHERE id=?", (cat_id,)).fetchone()
+        row = db.execute(
+            "SELECT * FROM categories WHERE id=? AND user_id=?", (cat_id, user.id)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Category not found")
         name = body.name if body.name is not None else row["name"]
         color = body.color if body.color is not None else row["color"]
-        db.execute("UPDATE categories SET name=?, color=? WHERE id=?", (name, color, cat_id))
+        db.execute(
+            "UPDATE categories SET name=?, color=? WHERE id=? AND user_id=?",
+            (name, color, cat_id, user.id)
+        )
         db.commit()
-        row = db.execute("SELECT * FROM categories WHERE id=?", (cat_id,)).fetchone()
+        row = db.execute("SELECT * FROM categories WHERE id=? AND user_id=?", (cat_id, user.id)).fetchone()
     return dict(row)
 
 
 @router.delete("/{cat_id}", status_code=204)
-def delete_category(cat_id: int, _: UserInfo = Depends(get_current_user)):
+def delete_category(cat_id: int, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        row = db.execute("SELECT id FROM categories WHERE id=?", (cat_id,)).fetchone()
+        row = db.execute(
+            "SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, user.id)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Category not found")
-        db.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+        db.execute("DELETE FROM categories WHERE id=? AND user_id=?", (cat_id, user.id))
         db.commit()
     return Response(status_code=204)
