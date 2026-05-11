@@ -109,12 +109,17 @@ export default function Analysis() {
     Promise.all([api.getCategories(), api.getMonthTransactions(month)]).then(([cats, txs]) => {
       const totals = {}
       txs.forEach((tx) => {
-        totals[tx.category_id] = (totals[tx.category_id] || 0) + tx.amount
+        const key = tx.category_id ?? "uncategorized"
+        totals[key] = (totals[key] || 0) + tx.amount
       })
       const data = cats
         .map((cat) => ({ ...cat, amount: totals[cat.id] || 0 }))
         .filter((cat) => cat.amount > 0)
-        .sort((a, b) => b.amount - a.amount)
+      const uncategorized = totals["uncategorized"] || 0
+      if (uncategorized > 0) {
+        data.push({ id: "uncategorized", name: "未分类", color: "#6b7280", icon: "", amount: uncategorized })
+      }
+      data.sort((a, b) => b.amount - a.amount)
       setChartData(data)
     })
   }, [])
