@@ -1,4 +1,3 @@
-import os
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -7,7 +6,13 @@ from jose import JWTError, jwt
 from backend.database import get_db
 from backend.models import UserInfo
 
-SECRET_KEY = os.getenv("JWT_SECRET", "coinsage-dev-secret-change-in-prod")
+def _get_secret_key() -> str:
+    with get_db() as db:
+        row = db.execute("SELECT value FROM app_config WHERE key='jwt_secret'").fetchone()
+        if row:
+            return row["value"]
+    return "fallback-not-for-production"
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
@@ -22,7 +27,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(data: dict) -> str:
     payload = data.copy()
     payload["exp"] = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _get_secret_key(), algorithm=ALGORITHM)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
@@ -32,7 +37,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _get_secret_key(), algorithms=[ALGORITHM])
         sub = payload.get("sub")
         user_id: int = int(sub) if sub is not None else None
         if user_id is None:

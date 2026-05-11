@@ -1,6 +1,6 @@
 import sqlite3
 import os
-import bcrypt
+import secrets
 from contextlib import contextmanager
 
 DB_PATH = os.getenv("DB_PATH", "coinsage.db")
@@ -18,6 +18,26 @@ def get_db(path: str = DB_PATH):
 def init_db(conn: sqlite3.Connection):
     # Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS app_config (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+
+    existing_secret = conn.execute(
+        "SELECT value FROM app_config WHERE key='jwt_secret'"
+    ).fetchone()
+    if not existing_secret:
+        conn.execute(
+            "INSERT INTO app_config (key, value) VALUES ('jwt_secret', ?)",
+            (secrets.token_hex(32),)
+        )
+
+    conn.execute(
+        "INSERT OR IGNORE INTO app_config (key, value) VALUES ('allow_registration', '1')"
+    )
 
     # Create tables (逐句执行避免 executescript 的隐式事务提交副作用)
     conn.execute("""
@@ -104,14 +124,5 @@ def init_db(conn: sqlite3.Connection):
             conn.execute(f"ALTER TABLE recurring_templates ADD COLUMN {col} {ddl}")
         except Exception:
             pass
-
-    # Seed default admin account
-    admin_username = os.getenv("ADMIN_USERNAME", "admin")
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-    admin_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
-    conn.execute(
-        "INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
-        (admin_username, admin_hash)
-    )
 
     conn.commit()
