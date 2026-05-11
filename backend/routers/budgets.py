@@ -9,15 +9,15 @@ router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
 
 @router.post("", response_model=Budget, status_code=201)
-def set_budget(body: BudgetCreate, _: UserInfo = Depends(get_current_user)):
+def set_budget(body: BudgetCreate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         db.execute(
-            "DELETE FROM budgets WHERE category_id IS ? AND year=? AND month=?",
-            (body.category_id, body.year, body.month)
+            "DELETE FROM budgets WHERE user_id=? AND category_id IS ? AND year=? AND month=?",
+            (user.id, body.category_id, body.year, body.month)
         )
         cur = db.execute(
-            "INSERT INTO budgets (category_id, amount, period, year, month) VALUES (?,?,?,?,?)",
-            (body.category_id, body.amount, body.period, body.year, body.month)
+            "INSERT INTO budgets (user_id, category_id, amount, period, year, month) VALUES (?,?,?,?,?,?)",
+            (user.id, body.category_id, body.amount, body.period, body.year, body.month)
         )
         db.commit()
         row = db.execute("SELECT * FROM budgets WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -25,17 +25,17 @@ def set_budget(body: BudgetCreate, _: UserInfo = Depends(get_current_user)):
 
 
 @router.get("", response_model=list[Budget])
-def list_budgets(year: int, month: int, _: UserInfo = Depends(get_current_user)):
+def list_budgets(year: int, month: int, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         rows = db.execute(
-            "SELECT * FROM budgets WHERE year=? AND month=?",
-            (year, month)
+            "SELECT * FROM budgets WHERE user_id=? AND year=? AND month=?",
+            (user.id, year, month)
         ).fetchall()
     return [dict(row) for row in rows]
 
 
 @router.get("/current")
-def get_current_budget(_: UserInfo = Depends(get_current_user)):
+def get_current_budget(user: UserInfo = Depends(get_current_user)):
     today = date.today()
     year, month = today.year, today.month
     month_str = f"{year}-{month:02d}"
@@ -44,12 +44,12 @@ def get_current_budget(_: UserInfo = Depends(get_current_user)):
 
     with get_db() as db:
         budget_row = db.execute(
-            "SELECT amount FROM budgets WHERE category_id IS NULL AND year=? AND month=?",
-            (year, month)
+            "SELECT amount FROM budgets WHERE user_id=? AND category_id IS NULL AND year=? AND month=?",
+            (user.id, year, month)
         ).fetchone()
         spent_row = db.execute(
-            "SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE strftime('%Y-%m', date)=?",
-            (month_str,)
+            "SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=? AND strftime('%Y-%m', date)=?",
+            (user.id, month_str)
         ).fetchone()
 
     total_budget = budget_row["amount"] if budget_row else 0
