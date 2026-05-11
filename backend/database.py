@@ -40,18 +40,32 @@ def init_db(conn: sqlite3.Connection):
     )
 
     # Create tables (逐句执行避免 executescript 的隐式事务提交副作用)
+    # users 必须先建，其他表通过外键引用它
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            username      TEXT    NOT NULL UNIQUE,
+            password_hash TEXT    NOT NULL,
+            is_owner      INTEGER NOT NULL DEFAULT 0,
+            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS categories (
-            id    INTEGER PRIMARY KEY AUTOINCREMENT,
-            name  TEXT NOT NULL UNIQUE,
-            color TEXT NOT NULL DEFAULT '#6366f1',
-            icon  TEXT NOT NULL DEFAULT 'tag'
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name    TEXT NOT NULL,
+            color   TEXT NOT NULL DEFAULT '#6366f1',
+            icon    TEXT NOT NULL DEFAULT 'tag',
+            UNIQUE(user_id, name)
         )
     """)
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             amount      REAL    NOT NULL CHECK(amount > 0),
             category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             note        TEXT    NOT NULL DEFAULT '',
@@ -63,6 +77,7 @@ def init_db(conn: sqlite3.Connection):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             amount      REAL    NOT NULL CHECK(amount > 0),
             period      TEXT    NOT NULL DEFAULT 'monthly' CHECK(period IN ('monthly', 'yearly')),
@@ -71,21 +86,12 @@ def init_db(conn: sqlite3.Connection):
         )
     """)
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            username      TEXT    NOT NULL UNIQUE,
-            password_hash TEXT    NOT NULL,
-            is_admin      INTEGER NOT NULL DEFAULT 0,
-            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
+    # ai_settings: 用 user_id 替代旧的 id=1 单例约束
     conn.execute("""
         CREATE TABLE IF NOT EXISTS ai_settings (
-            id        INTEGER PRIMARY KEY DEFAULT 1 CHECK(id = 1),
+            user_id   INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             provider  TEXT    NOT NULL DEFAULT 'openai',
-            model     TEXT    NOT NULL DEFAULT 'gpt-4o-mini',
+            model     TEXT    NOT NULL DEFAULT '',
             api_key   TEXT    NOT NULL DEFAULT '',
             base_url  TEXT,
             enabled   INTEGER NOT NULL DEFAULT 0,
@@ -93,17 +99,10 @@ def init_db(conn: sqlite3.Connection):
         )
     """)
 
-    # Insert default categories (使用 INSERT OR IGNORE 保证幂等)
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('餐饮',   '#f97316', 'utensils'))
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('交通',   '#3b82f6', 'car'))
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('购物',   '#ec4899', 'shopping-bag'))
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('娱乐',   '#8b5cf6', 'gamepad'))
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('医疗',   '#ef4444', 'heart'))
-    conn.execute("INSERT OR IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)", ('其他',   '#6b7280', 'more-horizontal'))
-
     conn.execute("""
         CREATE TABLE IF NOT EXISTS recurring_templates (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             name          TEXT    NOT NULL,
             amount        REAL    NOT NULL CHECK(amount > 0),
             category_id   INTEGER REFERENCES categories(id) ON DELETE SET NULL,
@@ -124,5 +123,33 @@ def init_db(conn: sqlite3.Connection):
             conn.execute(f"ALTER TABLE recurring_templates ADD COLUMN {col} {ddl}")
         except Exception:
             pass
+
+    # users 表迁移
+    for col, ddl in [
+        ("is_owner", "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+        except Exception:
+            pass
+    # 将旧的 is_admin=1 映射为 is_owner=1
+    try:
+        conn.execute("UPDATE users SET is_owner=1 WHERE is_admin=1")
+    except Exception:
+        pass
+
+    # 存量数据迁移：给旧表加 user_id 列，将旧数据归属 user_id=1
+    for table in ["transactions", "budgets", "categories", "recurring_templates"]:
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER")
+        except Exception:
+            pass  # 列已存在
+    try:
+        conn.execute("UPDATE transactions SET user_id=1 WHERE user_id IS NULL")
+        conn.execute("UPDATE budgets SET user_id=1 WHERE user_id IS NULL")
+        conn.execute("UPDATE categories SET user_id=1 WHERE user_id IS NULL")
+        conn.execute("UPDATE recurring_templates SET user_id=1 WHERE user_id IS NULL")
+    except Exception:
+        pass
 
     conn.commit()
