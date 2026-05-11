@@ -50,8 +50,8 @@ def list_recurring(user: UserInfo = Depends(get_current_user)):
         for t in templates:
             row = dict(t)
             period = row.get("period") or "monthly"
-            row["due_this_period"] = _due(period, t["day_of_month"], t.get("month_of_year"), today)
-            row["confirmed_this_period"] = _confirmed(db, user.id, t["name"], t["amount"], period, today)
+            row["due_this_period"] = _due(period, row["day_of_month"], row.get("month_of_year"), today)
+            row["confirmed_this_period"] = _confirmed(db, user.id, row["name"], row["amount"], period, today)
             result.append(row)
 
     return result
