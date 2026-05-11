@@ -72,7 +72,13 @@ def create_recurring(body: RecurringCreate, user: UserInfo = Depends(get_current
 @router.delete("/{tmpl_id}", status_code=204)
 def delete_recurring(tmpl_id: int, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        db.execute("UPDATE recurring_templates SET active=0 WHERE id=? AND user_id=?", (tmpl_id, user.id))
+        row = db.execute(
+            "SELECT id FROM recurring_templates WHERE id=? AND user_id=? AND active=1",
+            (tmpl_id, user.id)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="模板不存在")
+        db.execute("UPDATE recurring_templates SET active=0 WHERE id=?", (tmpl_id,))
         db.commit()
     return Response(status_code=204)
 

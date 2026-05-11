@@ -135,6 +135,11 @@ def update_transaction(tx_id: int, body: TransactionUpdate, user: UserInfo = Dep
 @router.delete("/{tx_id}", status_code=204)
 def delete_transaction(tx_id: int, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tx_id, user.id))
+        row = db.execute(
+            "SELECT id FROM transactions WHERE id=? AND user_id=?", (tx_id, user.id)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        db.execute("DELETE FROM transactions WHERE id=?", (tx_id,))
         db.commit()
     return Response(status_code=204)
