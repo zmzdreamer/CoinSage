@@ -18,7 +18,7 @@ def login(body: UserLogin):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
         )
-    user = UserInfo(id=row["id"], username=row["username"], is_admin=bool(row["is_admin"]))
+    user = UserInfo(id=row["id"], username=row["username"], is_owner=bool(row["is_owner"]))
     token = create_access_token({"sub": str(user.id)})
     return Token(access_token=token, user=user)
 

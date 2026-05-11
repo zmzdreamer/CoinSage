@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 from backend.database import get_db
 from backend.models import AISetting, AISettingUpdate, UserInfo
-from backend.auth import get_admin_user
+from backend.auth import get_current_user
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 @router.get("/ai", response_model=AISetting)
-def get_ai_settings(_: UserInfo = Depends(get_admin_user)):
+def get_ai_settings(user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         row = db.execute("SELECT * FROM ai_settings WHERE id=1").fetchone()
     if row is None:
@@ -17,7 +17,7 @@ def get_ai_settings(_: UserInfo = Depends(get_admin_user)):
 
 
 @router.put("/ai", response_model=AISetting)
-def update_ai_settings(body: AISettingUpdate, _: UserInfo = Depends(get_admin_user)):
+def update_ai_settings(body: AISettingUpdate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         db.execute("""
             INSERT INTO ai_settings (id, provider, model, api_key, base_url, enabled, updated_at)

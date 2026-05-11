@@ -49,10 +49,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
         row = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     if row is None:
         raise credentials_exc
-    return UserInfo(id=row["id"], username=row["username"], is_admin=bool(row["is_admin"]))
+    return UserInfo(id=row["id"], username=row["username"], is_owner=bool(row["is_owner"]))
 
 
-def get_admin_user(user: UserInfo = Depends(get_current_user)) -> UserInfo:
-    if not user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+def get_owner_user(user: UserInfo = Depends(get_current_user)) -> UserInfo:
+    if not user.is_owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要 Owner 权限")
     return user
