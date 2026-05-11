@@ -37,7 +37,14 @@ def auth_status():
 
 @router.post("/register", response_model=Token, status_code=201)
 def register(body: UserRegister):
+    # Validate inputs first (fast fail, no DB needed)
+    if not body.username.strip():
+        raise HTTPException(status_code=400, detail="用户名不能为空")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="密码至少 6 位")
+
     with get_db() as db:
+        db.execute("BEGIN EXCLUSIVE")
         user_count = db.execute("SELECT COUNT(*) as n FROM users").fetchone()["n"]
         is_first = user_count == 0
 
@@ -51,11 +58,6 @@ def register(body: UserRegister):
                     detail="注册已关闭，请联系管理员"
                 )
 
-        if not body.username.strip():
-            raise HTTPException(status_code=400, detail="用户名不能为空")
-        if len(body.password) < 6:
-            raise HTTPException(status_code=400, detail="密码至少 6 位")
-
         existing = db.execute(
             "SELECT id FROM users WHERE username=?", (body.username.strip(),)
         ).fetchone()
@@ -67,7 +69,6 @@ def register(body: UserRegister):
             "INSERT INTO users (username, password_hash, is_owner) VALUES (?,?,?)",
             (body.username.strip(), pw_hash, 1 if is_first else 0)
         )
-        db.commit()
         user_id = cur.lastrowid
         _seed_categories(db, user_id)
         db.commit()
