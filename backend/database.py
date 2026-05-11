@@ -152,4 +152,32 @@ def init_db(conn: sqlite3.Connection):
     except Exception:
         pass
 
+    # ai_settings 迁移：旧版单例表（id=1）→ 新版 per-user 表（user_id）
+    try:
+        existing_cols = [r[1] for r in conn.execute("PRAGMA table_info(ai_settings)").fetchall()]
+        if existing_cols and "user_id" not in existing_cols:
+            # 旧表存在但无 user_id：重建表
+            conn.execute("""
+                CREATE TABLE ai_settings_new (
+                    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    provider   TEXT    NOT NULL DEFAULT 'openai',
+                    model      TEXT    NOT NULL DEFAULT '',
+                    api_key    TEXT    NOT NULL DEFAULT '',
+                    base_url   TEXT,
+                    enabled    INTEGER NOT NULL DEFAULT 0,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # 将旧数据迁移到新表（归属 user_id=1，若 user_id=1 存在）
+            conn.execute("""
+                INSERT OR IGNORE INTO ai_settings_new (user_id, provider, model, api_key, base_url, enabled, updated_at)
+                SELECT 1, provider, model, api_key, base_url, enabled, updated_at
+                FROM ai_settings
+                WHERE EXISTS (SELECT 1 FROM users WHERE id=1)
+            """)
+            conn.execute("DROP TABLE ai_settings")
+            conn.execute("ALTER TABLE ai_settings_new RENAME TO ai_settings")
+    except Exception:
+        pass
+
     conn.commit()
