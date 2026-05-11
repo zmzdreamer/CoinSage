@@ -108,7 +108,7 @@ export default function Register({ isFirstRun = false, onSwitchToLogin }) {
           </button>
         </form>
 
-        {!isFirstRun && onSwitchToLogin && (
+        {onSwitchToLogin && (
           <p style={{ textAlign: "center", marginTop: "20px",
             fontSize: "14px", color: "var(--c-text-3)" }}>
             已有账号？{" "}

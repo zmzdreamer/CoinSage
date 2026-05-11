@@ -142,7 +142,7 @@ export default function App() {
   if (loading) return <Spinner />
   if (!user) {
     if (authStatus?.first_run) {
-      return <Register isFirstRun={true} />
+      return <Register isFirstRun={true} onSwitchToLogin={() => setAuthStatus(s => ({ ...s, first_run: false }))} />
     }
     if (showRegister) {
       return <Register onSwitchToLogin={() => setShowRegister(false)} />
