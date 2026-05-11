@@ -1,19 +1,19 @@
 import pytest
-from fastapi.testclient import TestClient
 from datetime import date
-from backend.main import app
 
-client = TestClient(app)
 
-def test_set_monthly_budget():
+def test_set_monthly_budget(app_client):
+    client, headers = app_client
     today = date.today()
     payload = {"amount": 2000.0, "period": "monthly", "year": today.year, "month": today.month}
-    response = client.post("/api/budgets", json=payload)
+    response = client.post("/api/budgets", json=payload, headers=headers)
     assert response.status_code == 201
     assert response.json()["amount"] == 2000.0
 
-def test_get_current_budget():
-    response = client.get("/api/budgets/current")
+
+def test_get_current_budget(app_client):
+    client, headers = app_client
+    response = client.get("/api/budgets/current", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "total_budget" in data

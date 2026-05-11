@@ -6,7 +6,9 @@ from contextlib import contextmanager
 DB_PATH = os.getenv("DB_PATH", "coinsage.db")
 
 @contextmanager
-def get_db(path: str = DB_PATH):
+def get_db(path: str = None):
+    if path is None:
+        path = DB_PATH
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

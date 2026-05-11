@@ -1,26 +1,20 @@
 import pytest
-from fastapi.testclient import TestClient
-from backend.main import app
-from backend.database import get_db, init_db
 
-@pytest.fixture(autouse=True)
-def setup_db():
-    """Initialize test database before each test"""
-    with get_db() as db:
-        init_db(db)
-    yield
 
-client = TestClient(app)
-
-def test_list_categories():
-    response = client.get("/api/categories")
+def test_list_categories(app_client):
+    client, headers = app_client
+    response = client.get("/api/categories", headers=headers)
     assert response.status_code == 200
     data = response.json()
+    # Registration seeds 6 default categories per user
     assert len(data) >= 6
-    assert data[0]["name"] == "餐饮"
+    names = [c["name"] for c in data]
+    assert "餐饮" in names
 
-def test_category_has_required_fields():
-    response = client.get("/api/categories")
+
+def test_category_has_required_fields(app_client):
+    client, headers = app_client
+    response = client.get("/api/categories", headers=headers)
     cat = response.json()[0]
     assert "id" in cat
     assert "name" in cat
