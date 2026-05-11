@@ -37,10 +37,18 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class UserRegister(BaseModel):
+    username: str
+    password: str
+
 class UserInfo(BaseModel):
     id: int
     username: str
-    is_admin: bool
+    is_owner: bool
+
+class AuthStatus(BaseModel):
+    first_run: bool
+    registration_open: bool
 
 class Token(BaseModel):
     access_token: str
