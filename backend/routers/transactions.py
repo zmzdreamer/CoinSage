@@ -12,11 +12,11 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
 @router.post("", response_model=Transaction, status_code=201)
-def create_transaction(body: TransactionCreate, _: UserInfo = Depends(get_current_user)):
+def create_transaction(body: TransactionCreate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         cur = db.execute(
-            "INSERT INTO transactions (amount, category_id, note, date) VALUES (?,?,?,?)",
-            (body.amount, body.category_id, body.note, str(body.date))
+            "INSERT INTO transactions (user_id, amount, category_id, note, date) VALUES (?,?,?,?,?)",
+            (user.id, body.amount, body.category_id, body.note, str(body.date))
         )
         db.commit()
         row = db.execute("SELECT * FROM transactions WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -25,21 +25,22 @@ def create_transaction(body: TransactionCreate, _: UserInfo = Depends(get_curren
 
 @router.get("", response_model=list[Transaction])
 def list_transactions(date: Optional[date_type] = None, month: Optional[str] = None,
-                      _: UserInfo = Depends(get_current_user)):
+                      user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         if date:
             rows = db.execute(
-                "SELECT * FROM transactions WHERE date=? ORDER BY created_at DESC",
-                (str(date),)
+                "SELECT * FROM transactions WHERE user_id=? AND date=? ORDER BY created_at DESC",
+                (user.id, str(date))
             ).fetchall()
         elif month:
             rows = db.execute(
-                "SELECT * FROM transactions WHERE strftime('%Y-%m', date)=? ORDER BY date DESC",
-                (month,)
+                "SELECT * FROM transactions WHERE user_id=? AND strftime('%Y-%m', date)=? ORDER BY date DESC",
+                (user.id, month)
             ).fetchall()
         else:
             rows = db.execute(
-                "SELECT * FROM transactions ORDER BY date DESC LIMIT 100"
+                "SELECT * FROM transactions WHERE user_id=? ORDER BY date DESC LIMIT 100",
+                (user.id,)
             ).fetchall()
     return [dict(row) for row in rows]
 
@@ -53,10 +54,10 @@ def search_transactions(
     date_from: Optional[date_type] = None,
     date_to: Optional[date_type] = None,
     limit: int = 100,
-    _: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ):
-    conditions = []
-    params = []
+    conditions = ["t.user_id = ?"]
+    params = [user.id]
 
     if q:
         conditions.append("t.note LIKE ?")
@@ -77,7 +78,7 @@ def search_transactions(
         conditions.append("t.date <= ?")
         params.append(str(date_to))
 
-    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    where = "WHERE " + " AND ".join(conditions)
     sql = f"""
         SELECT t.*, c.name as category_name, c.color as category_color
         FROM transactions t
@@ -94,15 +95,15 @@ def search_transactions(
 
 
 @router.get("/export")
-def export_transactions_csv(month: Optional[str] = None, _: UserInfo = Depends(get_current_user)):
+def export_transactions_csv(month: Optional[str] = None, user: UserInfo = Depends(get_current_user)):
     if not month:
         raise HTTPException(status_code=400, detail="month 参数必填，格式 YYYY-MM")
     with get_db() as db:
         rows = db.execute(
             "SELECT t.date, t.amount, COALESCE(c.name, '其他') as category_name, t.note "
             "FROM transactions t LEFT JOIN categories c ON t.category_id = c.id "
-            "WHERE strftime('%Y-%m', t.date)=? ORDER BY t.date ASC",
-            (month,)
+            "WHERE t.user_id=? AND strftime('%Y-%m', t.date)=? ORDER BY t.date ASC",
+            (user.id, month)
         ).fetchall()
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -118,22 +119,22 @@ def export_transactions_csv(month: Optional[str] = None, _: UserInfo = Depends(g
 
 
 @router.patch("/{tx_id}", response_model=Transaction)
-def update_transaction(tx_id: int, body: TransactionUpdate, _: UserInfo = Depends(get_current_user)):
+def update_transaction(tx_id: int, body: TransactionUpdate, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
         db.execute(
-            "UPDATE transactions SET amount=?, category_id=?, note=? WHERE id=?",
-            (body.amount, body.category_id, body.note, tx_id)
+            "UPDATE transactions SET amount=?, category_id=?, note=? WHERE id=? AND user_id=?",
+            (body.amount, body.category_id, body.note, tx_id, user.id)
         )
         db.commit()
-        row = db.execute("SELECT * FROM transactions WHERE id=?", (tx_id,)).fetchone()
+        row = db.execute("SELECT * FROM transactions WHERE id=? AND user_id=?", (tx_id, user.id)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return dict(row)
 
 
 @router.delete("/{tx_id}", status_code=204)
-def delete_transaction(tx_id: int, _: UserInfo = Depends(get_current_user)):
+def delete_transaction(tx_id: int, user: UserInfo = Depends(get_current_user)):
     with get_db() as db:
-        db.execute("DELETE FROM transactions WHERE id=?", (tx_id,))
+        db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tx_id, user.id))
         db.commit()
     return Response(status_code=204)
