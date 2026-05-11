@@ -37,6 +37,16 @@ export const api = {
   getMe() {
     return fetchJSON(`${BASE}/auth/me`)
   },
+  getAuthStatus() {
+    return fetchJSON(`${BASE}/auth/status`)
+  },
+  register(username, password) {
+    return fetchJSON(`${BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    })
+  },
 
   /* ── AI Settings (admin only) ── */
   getAISettings() {
@@ -47,6 +57,13 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+    })
+  },
+  updateRegistration(allow) {
+    return fetchJSON(`${BASE}/settings/registration`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allow_registration: allow }),
     })
   },
 
