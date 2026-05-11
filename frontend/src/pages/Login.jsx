@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useAuth } from "../AuthContext"
 import { api } from "../api"
 
-export default function Login() {
+export default function Login({ onSwitchToRegister }) {
   const { login } = useAuth()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -126,6 +126,18 @@ export default function Login() {
             ) : "登录"}
           </button>
         </form>
+
+        {onSwitchToRegister && (
+          <p style={{ textAlign: "center", marginTop: "20px",
+            fontSize: "14px", color: "var(--c-text-3)" }}>
+            还没有账号？{" "}
+            <button onClick={onSwitchToRegister}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                color: "var(--c-blue)", fontFamily: "var(--font)", fontSize: "14px" }}>
+              注册
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )
