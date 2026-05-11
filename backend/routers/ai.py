@@ -10,15 +10,15 @@ from backend.models import UserInfo
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
-def _get_llm_config(db) -> dict:
-    row = db.execute("SELECT * FROM ai_settings WHERE id=1").fetchone()
+def _get_llm_config(db, user_id: int) -> dict:
+    row = db.execute("SELECT * FROM ai_settings WHERE user_id=?", (user_id,)).fetchone()
     if row:
         return dict(row)
     return {}
 
 
-def _load_category_map(db) -> dict:
-    rows = db.execute("SELECT id, name FROM categories").fetchall()
+def _load_category_map(db, user_id: int) -> dict:
+    rows = db.execute("SELECT id, name FROM categories WHERE user_id=?", (user_id,)).fetchall()
     return {row["id"]: row["name"] for row in rows}
 
 
@@ -45,17 +45,17 @@ def _fmt_category_summary(rows, category_map: dict) -> str:
 
 
 @router.get("/daily-summary")
-def daily_summary(_: UserInfo = Depends(get_current_user)):
+def daily_summary(user: UserInfo = Depends(get_current_user)):
     today = date.today()
     with get_db() as db:
-        config = _get_llm_config(db)
-        category_map = _load_category_map(db)
+        config = _get_llm_config(db, user.id)
+        category_map = _load_category_map(db, user.id)
         rows = db.execute(
-            "SELECT * FROM transactions WHERE date=?", (str(today),)
+            "SELECT * FROM transactions WHERE user_id=? AND date=?", (user.id, str(today))
         ).fetchall()
 
     llm = LLMClient(config=config)
-    budget = get_current_budget()
+    budget = get_current_budget(user=user)
     prompt = load_prompt("daily_summary").format(
         date=str(today),
         transactions=_fmt_transactions(rows, category_map),
@@ -66,19 +66,19 @@ def daily_summary(_: UserInfo = Depends(get_current_user)):
 
 
 @router.post("/rebalance")
-def rebalance(_: UserInfo = Depends(get_current_user)):
+def rebalance(user: UserInfo = Depends(get_current_user)):
     today = date.today()
     month_str = f"{today.year}-{today.month:02d}"
     with get_db() as db:
-        config = _get_llm_config(db)
-        category_map = _load_category_map(db)
+        config = _get_llm_config(db, user.id)
+        category_map = _load_category_map(db, user.id)
         rows = db.execute(
-            "SELECT * FROM transactions WHERE strftime('%Y-%m', date)=? ORDER BY date DESC",
-            (month_str,)
+            "SELECT * FROM transactions WHERE user_id=? AND strftime('%Y-%m', date)=? ORDER BY date DESC",
+            (user.id, month_str)
         ).fetchall()
 
     llm = LLMClient(config=config)
-    budget = get_current_budget()
+    budget = get_current_budget(user=user)
     prompt = load_prompt("rebalance").format(
         total_budget=budget["total_budget"],
         total_spent=budget["total_spent"],
