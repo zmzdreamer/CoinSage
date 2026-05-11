@@ -80,7 +80,7 @@ function DonutChart({ chartData }) {
               background: s.color, flexShrink: 0,
             }} />
             <span style={{ fontSize: "13px", color: "var(--c-text-2)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {s.icon} {s.name}
+              {s.name}
             </span>
             <span style={{ fontSize: "13px", color: "var(--c-text-1)", fontWeight: 600, flexShrink: 0 }}>
               ¥{s.amount.toFixed(0)}
