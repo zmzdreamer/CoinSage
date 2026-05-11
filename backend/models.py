@@ -10,7 +10,7 @@ class Category(BaseModel):
 
 class TransactionCreate(BaseModel):
     amount: float
-    category_id: int
+    category_id: Optional[int] = None
     note: str = ""
     date: date
 
