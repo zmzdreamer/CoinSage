@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "./AuthContext"
+import { api } from "./api"
 import Home from "./pages/Home"
 import History from "./pages/History"
 import AddRecord from "./pages/AddRecord"
@@ -9,6 +10,7 @@ import Categories from "./pages/Categories"
 import AISettings from "./pages/AISettings"
 import Search from "./pages/Search"
 import Login from "./pages/Login"
+import Register from "./pages/Register"
 import "./index.css"
 
 /* ─── SVG Icons ─── */
@@ -114,6 +116,8 @@ export default function App() {
   const [showAISettings, setShowAISettings] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [authStatus, setAuthStatus]     = useState(null)
+  const [showRegister, setShowRegister] = useState(false)
 
   useEffect(() => {
     function onKey(e) {
@@ -126,8 +130,29 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
+  useEffect(() => {
+    if (loading) return
+    if (!user) {
+      api.getAuthStatus()
+        .then(s => setAuthStatus(s))
+        .catch(() => setAuthStatus({ first_run: false, registration_open: true }))
+    }
+  }, [loading, user])
+
   if (loading) return <Spinner />
-  if (!user)   return <Login />
+  if (!user) {
+    if (authStatus?.first_run) {
+      return <Register isFirstRun={true} />
+    }
+    if (showRegister) {
+      return <Register onSwitchToLogin={() => setShowRegister(false)} />
+    }
+    return (
+      <Login
+        onSwitchToRegister={authStatus?.registration_open ? () => setShowRegister(true) : null}
+      />
+    )
+  }
 
   function handleSaved() {
     setShowAdd(false)
@@ -180,23 +205,19 @@ export default function App() {
 
         {/* Right: controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {user.is_admin && (
-            <>
-              <button onClick={() => setShowAISettings(true)} style={btnBase} aria-label="AI 设置" title="AI 设置">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                </svg>
-                <span className="hidden sm:inline">AI 设置</span>
-              </button>
-              <button onClick={() => setShowCategories(true)} style={btnBase} aria-label="管理分类" title="管理分类">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-                </svg>
-                <span className="hidden sm:inline">管理分类</span>
-              </button>
-            </>
-          )}
+          <button onClick={() => setShowAISettings(true)} style={btnBase} aria-label="AI 设置" title="AI 设置">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            <span className="hidden sm:inline">AI 设置</span>
+          </button>
+          <button onClick={() => setShowCategories(true)} style={btnBase} aria-label="管理分类" title="管理分类">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+            <span className="hidden sm:inline">管理分类</span>
+          </button>
           <button
             onClick={logout}
             title={`退出登录（${user.username}）`}

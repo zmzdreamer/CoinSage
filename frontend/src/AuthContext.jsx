@@ -8,7 +8,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)   // { id, username, is_admin }
+  const [user, setUser]       = useState(null)   // { id, username, is_owner }
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
